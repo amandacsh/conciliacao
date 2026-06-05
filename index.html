@@ -232,11 +232,10 @@ function identificarPagador(cnpj, texto){
 /* =========================================================================
    ARMAZENAMENTO (acumula entre uploads, persiste no navegador)
    ========================================================================= */
-const DB = {
-  nfs: JSON.parse(localStorage.getItem('pi_nfs')||'[]'),
-  txs: JSON.parse(localStorage.getItem('pi_txs')||'[]'),
-  conc: null,
-};
+// Sempre abrir VAZIO: descarta NFs/extrato salvos de aberturas anteriores.
+// (Dentro da MESMA sessão os uploads continuam acumulando normalmente.)
+try{ localStorage.removeItem('pi_nfs'); localStorage.removeItem('pi_txs'); }catch(e){}
+const DB = { nfs: [], txs: [], conc: null };
 function saveNFs(){localStorage.setItem('pi_nfs',JSON.stringify(DB.nfs));}
 function saveTXs(){localStorage.setItem('pi_txs',JSON.stringify(DB.txs));}
 
