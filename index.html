@@ -180,7 +180,7 @@
    Cada convênio tem CNPJs e "aliases" (trechos da razão social no extrato).
    ========================================================================= */
 const PAYERS = [
- {nome:"AHBB", cnpjs:["45349461000960","45349461000374"], aliases:["ASSOCIACAO H B BRASIL","ASSOCIACAO B BRASIL","ASSOCIACAO HOSPITA","H B BRASIL"]},
+ {nome:"AHBB", cnpjs:["45349461000960","45349461000374","45349461000102"], aliases:["ASSOCIACAO H B BRASIL","ASSOCIACAO B BRASIL","ASSOCIACAO HOSPITA","H B BRASIL"]},
  {nome:"NORDEN", cnpjs:["31097886000167"], aliases:["PERSONAL CARE OPERADORA"]},
  {nome:"UNIMED", cnpjs:["66872888000160"], aliases:["UNIMED DE MARILIA"]},
  {nome:"CASSI", cnpjs:["33719485000127"], aliases:["CASSI","CAIXA DE ASSISTENCIA DOS FUNCIONARI"]},
@@ -189,16 +189,16 @@ const PAYERS = [
  {nome:"PREF. GARÇA / FMS", cnpjs:["97519019000180","44518371000135"], aliases:["PM GARCA FMS","MUNICIPIO DE GARCA","PREF MUNIC GARCA"]},
  {nome:"PREF. UBIRAJARA / FMS", cnpjs:["11690387000171","46231882000105"], aliases:["FMS UBIRAJARA","PREF.UBIRAJARA","PREF UBIRAJARA"]},
  {nome:"PREF. VERA CRUZ / FMS", cnpjs:["13893179000103","72887078000180"], aliases:["FUNDO M DE SAUDE DO M VERA","PREF MUN VERA C"]},
- {nome:"PREF. PIRAPOZINHO / FMS", cnpjs:["21446346000198"], aliases:["FUNDO MUN SAUDE PIRAPOZINHO","FNS PIRAPOZ"]},
- {nome:"PREF. FERNÃO / FMS", cnpjs:["13525194000190"], aliases:["SP 351565 FMS","DIAGNOSTICO VIDA"]},
+ {nome:"PREF. PIRAPOZINHO / FMS", cnpjs:["21446346000198","54801121000161"], aliases:["FUNDO MUN SAUDE PIRAPOZINHO","FNS PIRAPOZ","MUNICIPIO DE PIRAPOZINHO","PREFEITURA MUNICIPAL DE PIRAPOZINHO"]},
+ {nome:"PREF. FERNÃO / FMS", cnpjs:["13525194000190","01612848000134","36456541000176"], aliases:["SP 351565 FMS","DIAGNOSTICO VIDA","PREFEITURA MUNICIPAL DE FERNAO","MUNICIPIO DE FERNAO"]},
  {nome:"PREF. ÁLVARO DE CARVALHO / FMS", cnpjs:["12077518000102","44518488000119"], aliases:["FUNDO M S ALVARO CARVALHO","PREF MUN DE ALVARO CARVALHO"]},
  {nome:"PREF. ALVINLÂNDIA / UMMES", cnpjs:["01488169000103"], aliases:["UNIAO DOS MUNICIPIOS DA MEDIA SOROC","UMMES"]},
  {nome:"PREF. CÂNDIDO MOTA / FMS", cnpjs:["46179958000192","11788735000148"], aliases:["PMCM","FMS CT SUS CUSTEIO"]},
- {nome:"PREF. GALIA / FMS", cnpjs:["12218868000141"], aliases:["SP 351660 FMS"]},
- {nome:"DR RAFAEL-CAMINHO DE DAMASCO", cnpjs:["48211585004374","48211585000115"], aliases:["CAMINHO DE DAMASCO"]},
- {nome:"DR RAFAEL-DUARTINA", cnpjs:["47717467000110"], aliases:["STA CASA DE DUARTINA","SANTA CASA MISERICORDIA DUARTIN"]},
+ {nome:"PREF. GALIA / FMS", cnpjs:["12218868000141","44518389000137"], aliases:["SP 351660 FMS","PREFEITURA MUNICIPAL DE GALIA","MUNICIPIO DE GALIA"]},
+ {nome:"DR RAFAEL-CAMINHO DE DAMASCO", cnpjs:["48211585004374","48211585000115","48211585000549"], aliases:["CAMINHO DE DAMASCO"]},
+ {nome:"DR RAFAEL-DUARTINA", cnpjs:["47717467000110","46137485000160","13650275000112"], aliases:["STA CASA DE DUARTINA","SANTA CASA MISERICORDIA DUARTIN","MUNICIPIO DE DUARTINA","FUNDO MUNICIPAL DE SAUDE DE DUARTINA"]},
  {nome:"SANTA CASA DE VALINHOS", cnpjs:["46056487000125"], aliases:["IRMANDADE DE SANTA CASA DE MISERICORDIA DE VAL"]},
- {nome:"SANTA CASA DE VINHEDO", cnpjs:["46446696000185","30187360000105"], aliases:["MUNICIPIO DE VINHEDO","ADM GESTAO FINANCEIRA"]},
+ {nome:"SANTA CASA DE VINHEDO", cnpjs:["46446696000185","30187360000105","72909179000105"], aliases:["MUNICIPIO DE VINHEDO","ADM GESTAO FINANCEIRA","IRMANDADE DA SANTA CASA DE VINHEDO","SANTA CASA DE VINHEDO"]},
  {nome:"DR RAFAEL-HOSPITAL GALIA", cnpjs:["02411710000130"], aliases:["IRMANDADE BENEFICENTE SAO JOSE"]},
  {nome:"MED SEVEN (LOUVEIRA)", cnpjs:["41828343000126"], aliases:["MED SEVEN"]},
  {nome:"DR RAFAEL-CCRX", cnpjs:["22895445000110"], aliases:["CENTRO CLINICO RADIOLOGICO","CENTRO CLINICO"]},
@@ -479,10 +479,15 @@ function conciliar(){
                        .sort((a,b)=>(a._emi||0)-(b._emi||0));
 
   function assign(n,pay,status,grupo){
-    n.usada=true; n.status=status; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
-    if(n._liq) n.deltaPct=+(((pay.valor-n._liq)/n._liq)*100).toFixed(2);
+    n.usada=true; n.status=status; n.dataPgto=dBR(pay._d);
+    if(grupo){ // MULTI: cada NF recebe seu próprio líquido (rateio), Δ%=0 e a nota mostra o TED total
+      n.pago = n._liq; n.deltaPct = 0;
+    } else {
+      n.pago = pay.valor;
+      n.deltaPct = n._liq ? +(((pay.valor-n._liq)/n._liq)*100).toFixed(2) : null;
+    }
     const tag = pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'');
-    n.identExtrato = grupo? ('[MULTI cobre '+grupo.map(x=>x.numero).join('+')+'] '+tag) : tag;
+    n.identExtrato = grupo? ('[MULTI cobre '+grupo.map(x=>x.numero).join('+')+' · TED total R$ '+fmt(pay.valor)+'] '+tag) : tag;
   }
   function bothBefore(arr,pay){ return arr.every(n=>!n._emi || (daysBetween(n._emi,pay._d)>=0 && daysBetween(n._emi,pay._d)<=120) || advance(n._conv)); }
   function findMulti(C,pay){
