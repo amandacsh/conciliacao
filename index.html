@@ -413,6 +413,7 @@ function parseOFX(text){
   return txs;
 }
 function classificarTx(tx){
+  if(tx.manual){ tx.classe='IGNORAR'; tx.motivo='ignorado manualmente'; return; }
   const m=(tx.memo||'').toUpperCase();
   const v=tx.valor||0;
   // documento (CNPJ 14 / CPF 11) no memo
@@ -451,11 +452,19 @@ function renderOFX(){
     shown++;
     const cls = t.classe==='CONCILIAR'?'st-integral':t.classe==='BOLETO'?'st-multi':t.classe==='A IDENTIFICAR'?'st-orfa':'st-pend';
     const tr=document.createElement('tr');
+    const podeIgnorar = (t.classe==='CONCILIAR'||t.classe==='A IDENTIFICAR'||t.manual);
     tr.innerHTML=`<td>${dBR(new Date(t.data))}</td><td>${t.tipo||''}</td>
       <td style="text-align:right">${fmt(t.valor)}</td><td>${t.doc||''}</td>
       <td>${t.pagador||''}</td>
-      <td><span class="pill ${cls}">${t.classe}</span><div class="muted" style="font-size:10px">${t.motivo||''}</div></td>
+      <td><span class="pill ${cls}">${t.classe}</span><div class="muted" style="font-size:10px">${t.motivo||''}</div>`+
+      (podeIgnorar?`<label style="font-size:10px;display:block;margin-top:3px;color:#b02a37"><input type="checkbox" class="ig" ${t.manual?'checked':''}> ignorar este pgto</label>`:'')+`</td>
       <td style="font-size:11px">${t.memo||''}</td>`;
+    const chk=tr.querySelector('.ig');
+    if(chk) chk.addEventListener('change',()=>{
+      if(chk.checked){ t.classe='IGNORAR'; t.motivo='ignorado manualmente'; t.manual=true; }
+      else { t.manual=false; classificarTx(t); }
+      saveTXs(); renderOFX();
+    });
     tb.appendChild(tr);
   });
   const nConc=DB.txs.filter(t=>t.classe==='CONCILIAR').length;
