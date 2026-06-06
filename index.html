@@ -117,6 +117,20 @@
     </div>
   </div>
   <div class="card">
+    <h2 style="font-size:15px">Relatório de boletos do banco (CSV) — opcional</h2>
+    <p class="muted">Suba o relatório de boletos do Sicredi. O sistema cruza o <b>"Seu Número" = Nº da NF</b> e dá baixa nas NFs pagas por boleto (resolve os LIQ.COBRANÇA do extrato).</p>
+    <div class="drop" id="drop-bol">
+      <div style="font-size:30px">🧾</div>
+      <p><b>Arraste aqui</b> ou clique para escolher o CSV de boletos</p>
+      <input type="file" id="file-bol" multiple accept=".csv">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span id="bol-count" class="muted">0 boletos pagos carregados</span>
+      <span style="flex:1"></span>
+      <button class="btn danger small" id="btn-clear-bol">Limpar boletos</button>
+    </div>
+  </div>
+  <div class="card">
     <div class="scroll">
       <table id="tbl-ofx">
         <thead><tr>
@@ -235,7 +249,7 @@ function identificarPagador(cnpj, texto){
 // Sempre abrir VAZIO: descarta NFs/extrato salvos de aberturas anteriores.
 // (Dentro da MESMA sessão os uploads continuam acumulando normalmente.)
 try{ localStorage.removeItem('pi_nfs'); localStorage.removeItem('pi_txs'); }catch(e){}
-const DB = { nfs: [], txs: [], conc: null };
+const DB = { nfs: [], txs: [], boletos: [], conc: null };
 function saveNFs(){localStorage.setItem('pi_nfs',JSON.stringify(DB.nfs));}
 function saveTXs(){localStorage.setItem('pi_txs',JSON.stringify(DB.txs));}
 
@@ -449,6 +463,32 @@ function renderOFX(){
 }
 
 /* =========================================================================
+   RELATÓRIO DE BOLETOS DO BANCO (CSV) — baixa por "Seu Número" = Nº da NF
+   ========================================================================= */
+function parseBoletoCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim().length);
+  const out=[];
+  for(let i=1;i<lines.length;i++){
+    const c=lines[i].split(';'); if(c.length<8) continue;
+    const dataPgto=(c[2]||'').trim();
+    if(!/^\d{2}\/\d{2}\/\d{4}$/.test(dataPgto)) continue;   // só boletos PAGOS (têm Data Pagamento)
+    out.push({pagador:(c[0]||'').trim(), dataPgto, nosso:(c[4]||'').trim(),
+      seu:(c[5]||'').replace(/\D/g,''), valor:num((c[6]||'').replace(/[R$\s]/g,'')),
+      cnpj:digits(c[7]), convenio:identificarPagador(digits(c[7]),(c[0]||''))||''});
+  }
+  return out;
+}
+function ingestBoleto(text){
+  const novos=parseBoletoCSV(text);
+  for(const b of novos){ if(!DB.boletos.find(x=>x.nosso===b.nosso && x.seu===b.seu)) DB.boletos.push(b); }
+  renderBoletos();
+}
+function renderBoletos(){
+  const el=document.getElementById('bol-count');
+  if(el) el.textContent=DB.boletos.length+' boletos pagos carregados (baixam pela coluna "Seu Número" = Nº da NF)';
+}
+
+/* =========================================================================
    MOTOR DE CONCILIAÇÃO (hierarquia do Manual)
    ========================================================================= */
 const TOL=0.02;
@@ -458,6 +498,16 @@ function conciliar(){
      _emi:parseDateBR(n.dataEmissao), _liq:num(n.liquido), _bru:num(n.bruto),
      _conv:n.convenio||identificarPagador(n.cnpj,n.tomador)||'', usada:false,
      status:'PENDENTE', pago:null, dataPgto:null, identExtrato:'', deltaPct:null}));
+  // --- BAIXA POR BOLETO: cruza o "Seu Número" do relatório de boletos com o Nº da NF ---
+  (DB.boletos||[]).forEach(b=>{
+    if(!b.seu) return;
+    const nf=nfs.find(n=>!n.usada && n.numero && String(n.numero)===String(b.seu));
+    if(nf){
+      nf.usada=true; nf.status='LIQUIDADA INTEGRAL'; nf.pago=(b.valor!=null?b.valor:nf._liq); nf.dataPgto=b.dataPgto;
+      nf.deltaPct=(nf._liq && b.valor!=null)? +(((b.valor-nf._liq)/nf._liq)*100).toFixed(2) : 0;
+      nf.identExtrato='BOLETO Nosso Nº '+b.nosso+' · pago '+b.dataPgto+' · R$ '+fmt(b.valor);
+    }
+  });
   // pagamentos a conciliar, ordenados cronologicamente (mais antigo primeiro)
   const pays = DB.txs.filter(t=>t.classe==='CONCILIAR')
      .map(t=>({...t, _d:new Date(t.data), usado:false}))
@@ -632,6 +682,8 @@ function wireDrop(dropId,inputId,handler){
 }
 wireDrop('drop-nf','file-nf',ingestNFFiles);
 wireDrop('drop-ofx','file-ofx',async files=>{ for(const f of files){ ingestOFX(await f.text()); } });
+wireDrop('drop-bol','file-bol',async files=>{ for(const f of files){ ingestBoleto(await f.text()); } });
+document.getElementById('btn-clear-bol').addEventListener('click',()=>{ if(confirm('Apagar os boletos carregados?')){ DB.boletos=[]; renderBoletos(); }});
 
 document.getElementById('btn-clear-nf').addEventListener('click',()=>{
   if(confirm('Apagar TODAS as NFs acumuladas?')){ DB.nfs=[]; saveNFs(); renderNFs(); }});
@@ -644,7 +696,7 @@ document.getElementById('only-conc').addEventListener('change',renderOFX);
 document.getElementById('btn-run').addEventListener('click',conciliar);
 document.getElementById('btn-xlsx').addEventListener('click',exportXLSX);
 
-renderNFs(); renderOFX();
+renderNFs(); renderOFX(); renderBoletos();
 </script>
 </body>
 </html>
