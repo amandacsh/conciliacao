@@ -522,7 +522,7 @@ function conciliar(){
     if(dd<0){ // pgto antes da NF
       return advance(nf._conv) ? (-dd<=120) : (-dd<=15);
     }
-    return dd<=120;
+    return dd<=270; // janela ampliada
   }
   // candidatas do mesmo pagador ainda não usadas, ordenadas por emissão (cronológico)
   const cand=(pay)=>nfs.filter(n=>!n.usada && n._conv && n._conv===pay.pagador)
@@ -539,7 +539,7 @@ function conciliar(){
     const tag = pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'');
     n.identExtrato = grupo? ('[MULTI cobre '+grupo.map(x=>x.numero).join('+')+' · TED total R$ '+fmt(pay.valor)+'] '+tag) : tag;
   }
-  function bothBefore(arr,pay){ return arr.every(n=>!n._emi || (daysBetween(n._emi,pay._d)>=0 && daysBetween(n._emi,pay._d)<=120) || advance(n._conv)); }
+  function bothBefore(arr,pay){ return arr.every(n=>!n._emi || (daysBetween(n._emi,pay._d)>=0 && daysBetween(n._emi,pay._d)<=200) || advance(n._conv)); }
   function findMulti(C,pay){
     for(let i=0;i<C.length;i++)for(let j=i+1;j<C.length;j++){
       const s=(C[i]._liq||0)+(C[j]._liq||0);
@@ -570,13 +570,31 @@ function conciliar(){
     if(done) continue;
     // T5 EXCESSO / juros: pago>líquido, excesso<=8%, em até 30 dias
     for(const n of C){ if(n._liq){ const exc=pay.valor-n._liq; const pct=exc/n._liq;
-      if(exc>TOL && pct<=0.08 && n._emi && daysBetween(n._emi,pay._d)>=0 && daysBetween(n._emi,pay._d)<=30){
+      if(exc>TOL && pct<=0.08 && n._emi && daysBetween(n._emi,pay._d)>=0 && daysBetween(n._emi,pay._d)<=90){
         assign(n,pay,'INTEGRAL c/ juros'); done=true; break; } } }
     if(done) continue;
     // sem match
     semNF.push(pay);
   }
 
+  // --- PARCELADO: 1 NF paga por VÁRIOS pagamentos (soma de 2-3 pgtos do mesmo convênio = líquido) ---
+  for(const nf of nfs){
+    if(nf.usada || !nf._liq || !nf._conv) continue;
+    const ps=semNF.filter(p=>p.pagador===nf._conv && (!nf._emi || daysBetween(nf._emi,p._d)>=-15));
+    let grp=null;
+    for(let i=0;i<ps.length && !grp;i++){
+      for(let j=i+1;j<ps.length && !grp;j++){
+        if(Math.abs((ps[i].valor+ps[j].valor)-nf._liq)<=TOL){ grp=[ps[i],ps[j]]; break; }
+        for(let k=j+1;k<ps.length;k++){ if(Math.abs((ps[i].valor+ps[j].valor+ps[k].valor)-nf._liq)<=TOL){ grp=[ps[i],ps[j],ps[k]]; break; } }
+      }
+    }
+    if(grp){
+      nf.usada=true; nf.status='LIQUIDADA INTEGRAL'; nf.pago=nf._liq; nf.deltaPct=0;
+      nf.dataPgto=dBR(grp[grp.length-1]._d);
+      nf.identExtrato='MÚLTIPLOS PAGAMENTOS ('+grp.length+'x): '+grp.map(p=>dBR(p._d)+' R$ '+fmt(p.valor)).join(' + ');
+      grp.forEach(p=>{ const ix=semNF.indexOf(p); if(ix>=0) semNF.splice(ix,1); });
+    }
+  }
   DB.conc={nfs, semNF};
   renderConc();
 }
