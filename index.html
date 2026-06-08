@@ -151,6 +151,7 @@
     <div class="row">
       <button class="btn" id="btn-run">▶ Rodar conciliação</button>
       <span id="conc-msg" class="muted"></span>
+      <div class="muted" style="width:100%;font-size:11px;margin-top:4px">✏️ Você pode editar <b>Pago, Data, Status e Identificação</b> direto na tabela abaixo — suas correções valem no relatório.</div>
     </div>
     <div class="legend" style="margin-top:12px">
       <span class="pill st-integral">LIQUIDADA INTEGRAL</span>
@@ -624,11 +625,20 @@ function renderConc(){
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${n.numero||''}</td><td>${n._conv||''}</td><td>${n.dataEmissao||''}</td>
       <td style="text-align:right">${fmt(n._liq)}</td>
-      <td style="text-align:right">${n.pago!=null?fmt(n.pago):''}</td>
-      <td>${n.dataPgto||''}</td>
+      <td contenteditable data-f="pago" style="text-align:right">${n.pago!=null?fmt(n.pago):''}</td>
+      <td contenteditable data-f="dataPgto">${n.dataPgto||''}</td>
       <td style="text-align:right">${n.deltaPct!=null?n.deltaPct+'%':''}</td>
-      <td><span class="pill ${statusClass(n.status)}">${n.status}</span></td>
-      <td style="font-size:11px">${n.identExtrato||''}</td>`;
+      <td contenteditable data-f="status"><span class="pill ${statusClass(n.status)}">${n.status}</span></td>
+      <td contenteditable data-f="identExtrato" style="font-size:11px">${n.identExtrato||''}</td>`;
+    tr.querySelectorAll('[contenteditable]').forEach(td=>{
+      td.addEventListener('blur',()=>{ const f=td.dataset.f; let v=td.textContent.trim();
+        if(f==='pago'){ v=num(v); n.pago=v; }
+        else if(f==='status'){ n.status=v||'PENDENTE'; n.usada = !!(v && !/PENDENTE/i.test(v)); }
+        else n[f]=v;
+        if(n._liq && n.pago!=null) n.deltaPct=+(((n.pago-n._liq)/n._liq)*100).toFixed(2);
+        renderConc();
+      });
+    });
     tb.appendChild(tr);
   });
   // estatísticas
