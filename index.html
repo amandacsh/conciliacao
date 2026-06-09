@@ -175,6 +175,17 @@
   </div>
 </section>
 
+  <div class="card">
+    <h2 style="font-size:15px">Pagamentos sem NF — marque os que se referem a NFs fora da base</h2>
+    <p class="muted">Alguns créditos sem NF correspondente são de NFs que você não relacionou (ou que devem ser ignorados). Marque aqui — a observação vai para o relatório.</p>
+    <div class="scroll">
+      <table id="tbl-sem">
+        <thead><tr><th>Data</th><th>Valor</th><th>Pagador</th><th>Memo</th><th>Observação</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
 <!-- ===================== ABA 4: RELATÓRIO ===================== -->
 <section class="panel" id="panel-rel">
   <div class="card">
@@ -213,7 +224,7 @@ const PAYERS = [
  {nome:"DR RAFAEL-CAMINHO DE DAMASCO", ret:0.0615, cnpjs:["48211585004374","48211585000115","48211585000549"], aliases:["CAMINHO DE DAMASCO"]},
  {nome:"DR RAFAEL-DUARTINA", ret:0.0615, cnpjs:["47717467000110","46137485000160","13650275000112"], aliases:["STA CASA DE DUARTINA","SANTA CASA MISERICORDIA DUARTIN","MUNICIPIO DE DUARTINA","FUNDO MUNICIPAL DE SAUDE DE DUARTINA"]},
  {nome:"SANTA CASA DE VALINHOS", cnpjs:["46056487000125"], aliases:["IRMANDADE DE SANTA CASA DE MISERICORDIA DE VAL"]},
- {nome:"SANTA CASA DE VINHEDO", cnpjs:["46446696000185","30187360000105","72909179000105"], aliases:["MUNICIPIO DE VINHEDO","ADM GESTAO FINANCEIRA","IRMANDADE DA SANTA CASA DE VINHEDO","SANTA CASA DE VINHEDO"]},
+ {nome:"SANTA CASA DE VINHEDO", ret:0.0615, cnpjs:["46446696000185","30187360000105","72909179000105"], aliases:["MUNICIPIO DE VINHEDO","ADM GESTAO FINANCEIRA","IRMANDADE DA SANTA CASA DE VINHEDO","SANTA CASA DE VINHEDO"]},
  {nome:"DR RAFAEL-HOSPITAL GALIA", ret:0.0615, cnpjs:["02411710000130"], aliases:["IRMANDADE BENEFICENTE SAO JOSE"]},
  {nome:"MED SEVEN (LOUVEIRA)", ret:0.0615, cnpjs:["41828343000126"], aliases:["MED SEVEN"]},
  {nome:"DR RAFAEL-CCRX", cnpjs:["22895445000110"], aliases:["CENTRO CLINICO RADIOLOGICO","CENTRO CLINICO"]},
@@ -661,6 +672,14 @@ function renderConc(){
   add('NFs conciliadas',concil); add('NFs pendentes',pend); add('Pgtos sem NF',semNF.length);
   add('Glosas',c['DIVERGENTE - PROVÁVEL GLOSA']||0); add('Múltiplos',(c['MÚLTIPLOS DEPÓSITOS']||0));
   document.getElementById('conc-msg').textContent=`${concil} conciliadas · ${pend} pendentes · ${semNF.length} pgtos sem NF`;
+  const ts=document.querySelector('#tbl-sem tbody'); if(ts){ ts.innerHTML='';
+    semNF.forEach(p=>{ const tr=document.createElement('tr');
+      const opts=['','IGNORAR','REFERE-SE A NF FORA DA BASE'].map(o=>`<option${(p.obs||'')===o?' selected':''}>${o}</option>`).join('');
+      tr.innerHTML=`<td>${dBR(new Date(p.data))}</td><td style="text-align:right">${fmt(p.valor)}</td><td>${p.pagador||''}</td><td style="font-size:11px">${(p.memo||'').slice(0,42)}</td><td><select class="obs">${opts}</select></td>`;
+      tr.querySelector('select').addEventListener('change',e=>{ p.obs=e.target.value; });
+      ts.appendChild(tr);
+    });
+  }
   renderResumo();
 }
 function renderResumo(){
@@ -688,7 +707,7 @@ function exportXLSX(){
     'Convênio':n._conv,'Nº NF':n.numero,'Tomador':n.tomador,'CNPJ':n.cnpj,
     'Emissão':n.dataEmissao,'Competência':n.competencia,'Bruto':n._bru,'Líquido':n._liq,'Status':'PENDENTE'}));
   const sem=semNF.map(p=>({'Data':dBR(new Date(p.data)),'Tipo':p.tipo,'Valor':p.valor,
-    'Documento':p.doc,'Pagador':p.pagador||'','Memo':p.memo}));
+    'Documento':p.doc,'Pagador':p.pagador||'','Memo':p.memo,'Observação':p.obs||''}));
   const porConv={}; nfs.forEach(n=>{const k=n._conv||'(sem convênio)'; porConv[k]=porConv[k]||{conv:k,total:0,conc:0,pend:0,liq:0,pago:0};
     porConv[k].total++; if(n.usada){porConv[k].conc++;porConv[k].pago+=n.pago||0;}else porConv[k].pend++; porConv[k].liq+=n._liq||0;});
   const resumoConv=Object.values(porConv).map(r=>({'Convênio':r.conv,'NFs':r.total,'Conciliadas':r.conc,'Pendentes':r.pend,
