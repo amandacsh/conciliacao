@@ -610,21 +610,32 @@ function conciliar(){
     semNF.push(pay);
   }
 
-  // --- PARCELADO: 1 NF paga por VÁRIOS pagamentos (soma de 2-3 pgtos do mesmo convênio = líquido) ---
+  // --- PARCELADO: 1 NF paga por VÁRIOS pagamentos (2 a 5) do mesmo convênio.
+  //     soma testada contra líquido, bruto e bruto×(1-retenção do pagador) ---
   for(const nf of nfs){
-    if(nf.usada || !nf._liq || !nf._conv) continue;
-    const ps=semNF.filter(p=>p.pagador===nf._conv && (!nf._emi || daysBetween(nf._emi,p._d)>=-15));
-    let grp=null;
-    for(let i=0;i<ps.length && !grp;i++){
-      for(let j=i+1;j<ps.length && !grp;j++){
-        if(Math.abs((ps[i].valor+ps[j].valor)-nf._liq)<=TOL){ grp=[ps[i],ps[j]]; break; }
-        for(let k=j+1;k<ps.length;k++){ if(Math.abs((ps[i].valor+ps[j].valor+ps[k].valor)-nf._liq)<=TOL){ grp=[ps[i],ps[j],ps[k]]; break; } }
-      }
-    }
+    if(nf.usada || !nf._conv) continue;
+    const ret=retOf(nf._conv);
+    const targets=[];
+    if(nf._liq) targets.push([nf._liq,'liq']);
+    if(nf._bru){ if(ret>0) targets.push([+(nf._bru*(1-ret)).toFixed(2),'ret']); targets.push([nf._bru,'bru']); }
+    if(!targets.length) continue;
+    const ps=semNF.filter(p=>p.pagador===nf._conv && (!nf._emi || daysBetween(nf._emi,p._d)>=-15)).sort((a,b)=>a._d-b._d);
+    const MAXP=Math.min(5,ps.length);
+    let grp=null, tl=null;
+    (function search(start,chosen,sum){
+      if(grp) return;
+      if(chosen.length>=2){ for(const t of targets){ if(Math.abs(sum-t[0])<=0.05){ grp=chosen.slice(); tl=t[1]; return; } } }
+      if(chosen.length>=MAXP) return;
+      for(let i=start;i<ps.length;i++){ chosen.push(ps[i]); search(i+1,chosen,sum+ps[i].valor); chosen.pop(); if(grp) return; }
+    })(0,[],0);
     if(grp){
-      nf.usada=true; nf.status='LIQUIDADA INTEGRAL'; nf.pago=nf._liq; nf.deltaPct=0;
+      nf.usada=true;
+      nf.pago=+grp.reduce((s,p)=>s+p.valor,0).toFixed(2);
+      nf.deltaPct = nf._liq ? +(((nf.pago-nf._liq)/nf._liq)*100).toFixed(2) : 0;
+      const pct=(ret*100).toFixed(2).replace(/\.?0+$/,'').replace('.',',');
+      nf.status = tl==='liq' ? 'LIQUIDADA INTEGRAL' : (tl==='ret' ? 'LIQUIDADA - retenção '+pct+'% s/ bruto' : 'LIQUIDADA - sem retenção');
       nf.dataPgto=dBR(grp[grp.length-1]._d);
-      nf.identExtrato='MÚLTIPLOS PAGAMENTOS ('+grp.length+'x): '+grp.map(p=>dBR(p._d)+' R$ '+fmt(p.valor)).join(' + ');
+      nf.identExtrato='PARCELADO ('+grp.length+'x): '+grp.map(p=>dBR(p._d)+' R$ '+fmt(p.valor)).join(' + ');
       grp.forEach(p=>{ const ix=semNF.indexOf(p); if(ix>=0) semNF.splice(ix,1); });
     }
   }
