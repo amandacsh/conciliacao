@@ -59,6 +59,13 @@
   <p>100% no seu navegador · nenhum arquivo sai do computador · CNPJ 14.882.395/0001-08</p>
 </header>
 
+<div class="row" id="sessbar" style="background:#eef5fc;padding:8px 24px;border-bottom:1px solid var(--borda);font-size:13px;align-items:center;gap:10px">
+  <b style="font-size:12px">Memória:</b>
+  <button class="btn sec small" id="btn-save-sess">💾 Salvar conciliação atual</button>
+  <button class="btn sec small" id="btn-load-sess">📂 Carregar última conciliação</button>
+  <span id="sess-msg" class="muted"></span>
+</div>
+
 <div class="tabs">
   <button class="tab active" data-tab="nf">1 · Notas Fiscais</button>
   <button class="tab" data-tab="ofx">2 · Extrato OFX</button>
@@ -266,6 +273,20 @@ try{ localStorage.removeItem('pi_nfs'); localStorage.removeItem('pi_txs'); }catc
 const DB = { nfs: [], txs: [], boletos: [], conc: null };
 function saveNFs(){localStorage.setItem('pi_nfs',JSON.stringify(DB.nfs));}
 function saveTXs(){localStorage.setItem('pi_txs',JSON.stringify(DB.txs));}
+function _snap(){ return JSON.stringify({nfs:DB.nfs,txs:DB.txs,boletos:DB.boletos,conc:DB.conc,ts:Date.now()}); }
+function salvarSessao(){ try{
+  if(!DB.nfs.length && !DB.txs.length){ document.getElementById('sess-msg').textContent='Nada para salvar ainda — carregue NFs/extrato primeiro.'; return; }
+  localStorage.setItem('pi_sessao',_snap());
+  document.getElementById('sess-msg').textContent='✅ Salvo em '+new Date().toLocaleString('pt-BR')+' ('+DB.nfs.length+' NFs, '+DB.txs.length+' lançamentos)';
+}catch(e){ document.getElementById('sess-msg').textContent='Erro ao salvar (memória cheia?): '+e.message; } }
+function carregarSessao(){ try{
+  const raw=localStorage.getItem('pi_sessao');
+  if(!raw){ document.getElementById('sess-msg').textContent='Nenhuma conciliação salva ainda. Rode uma e clique em Salvar.'; return; }
+  const d=JSON.parse(raw);
+  DB.nfs=d.nfs||[]; DB.txs=d.txs||[]; DB.boletos=d.boletos||[]; DB.conc=d.conc||null;
+  renderNFs(); renderOFX(); renderBoletos(); if(DB.conc) renderConc();
+  document.getElementById('sess-msg').textContent='📂 Carregada a conciliação de '+new Date(d.ts).toLocaleString('pt-BR')+' ('+DB.nfs.length+' NFs)';
+}catch(e){ document.getElementById('sess-msg').textContent='Erro ao carregar: '+e.message; } }
 
 /* =========================================================================
    UTILITÁRIOS
@@ -640,6 +661,7 @@ function conciliar(){
     }
   }
   DB.conc={nfs, semNF};
+  try{ if(DB.nfs.length) localStorage.setItem('pi_sessao',_snap()); }catch(e){}
   renderConc();
 }
 
@@ -774,6 +796,9 @@ document.getElementById('btn-add-nf').addEventListener('click',()=>{
 document.getElementById('only-conc').addEventListener('change',renderOFX);
 document.getElementById('btn-run').addEventListener('click',conciliar);
 document.getElementById('btn-xlsx').addEventListener('click',exportXLSX);
+document.getElementById('btn-save-sess').addEventListener('click',salvarSessao);
+document.getElementById('btn-load-sess').addEventListener('click',carregarSessao);
+(function(){ try{ const raw=localStorage.getItem('pi_sessao'); const el=document.getElementById('sess-msg'); if(raw&&el){ const d=JSON.parse(raw); el.textContent='Há uma conciliação salva ('+new Date(d.ts).toLocaleString('pt-BR')+', '+(d.nfs?d.nfs.length:0)+' NFs) — clique em "Carregar última".'; } }catch(e){} })();
 
 renderNFs(); renderOFX(); renderBoletos();
 </script>
