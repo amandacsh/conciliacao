@@ -213,36 +213,46 @@
    Cada convênio tem CNPJs e "aliases" (trechos da razão social no extrato).
    ========================================================================= */
 const PAYERS = [
- {nome:"AHBB", cnpjs:["45349461000960","45349461000374","45349461000102"], aliases:["ASSOCIACAO H B BRASIL","ASSOCIACAO B BRASIL","ASSOCIACAO HOSPITA","H B BRASIL"]},
- {nome:"NORDEN", ret:0.0615, cnpjs:["31097886000167"], aliases:["PERSONAL CARE OPERADORA"]},
- {nome:"UNIMED", ret:0.0615, cnpjs:["66872888000160"], aliases:["UNIMED DE MARILIA"]},
- {nome:"CASSI", ret:0.0615, cnpjs:["33719485000127"], aliases:["CASSI","CAIXA DE ASSISTENCIA DOS FUNCIONARI"]},
- {nome:"APAS", ret:0.0615, cnpjs:["57272510000135"], aliases:["ASSOCIACAO POLICIAL"]},
- {nome:"AMAFRESP", ret:0.0615, cnpjs:["62635990000191"], aliases:["AUDITORES FISCAIS DA RECEITA"]},
- {nome:"PREF. GARÇA / FMS", ret:0.012, cnpjs:["97519019000180","44518371000135"], aliases:["PM GARCA FMS","MUNICIPIO DE GARCA","PREF MUNIC GARCA"]},
- {nome:"PREF. UBIRAJARA / FMS", cnpjs:["11690387000171","46231882000105"], aliases:["FMS UBIRAJARA","PREF.UBIRAJARA","PREF UBIRAJARA"]},
- {nome:"PREF. VERA CRUZ / FMS", ret:0.0128, cnpjs:["13893179000103","72887078000180"], aliases:["FUNDO M DE SAUDE DO M VERA","PREF MUN VERA C"]},
- {nome:"PREF. PIRAPOZINHO / FMS", cnpjs:["21446346000198","54801121000161"], aliases:["FUNDO MUN SAUDE PIRAPOZINHO","FNS PIRAPOZ","MUNICIPIO DE PIRAPOZINHO","PREFEITURA MUNICIPAL DE PIRAPOZINHO"]},
- {nome:"PREF. FERNÃO / FMS", ret:0.0615, cnpjs:["13525194000190","01612848000134","36456541000176"], aliases:["SP 351565 FMS","DIAGNOSTICO VIDA","PREFEITURA MUNICIPAL DE FERNAO","MUNICIPIO DE FERNAO"]},
- {nome:"PREF. ÁLVARO DE CARVALHO / FMS", cnpjs:["12077518000102","44518488000119"], aliases:["FUNDO M S ALVARO CARVALHO","PREF MUN DE ALVARO CARVALHO"]},
- {nome:"PREF. ALVINLÂNDIA / UMMES", cnpjs:["01488169000103"], aliases:["UNIAO DOS MUNICIPIOS DA MEDIA SOROC","UMMES"]},
- {nome:"PREF. CÂNDIDO MOTA / FMS", ret:0.012, cnpjs:["46179958000192","11788735000148"], aliases:["PMCM","FMS CT SUS CUSTEIO"]},
- {nome:"PREF. GALIA / FMS", cnpjs:["12218868000141","44518389000137"], aliases:["SP 351660 FMS","PREFEITURA MUNICIPAL DE GALIA","MUNICIPIO DE GALIA"]},
- {nome:"DR RAFAEL-CAMINHO DE DAMASCO", ret:0.0615, cnpjs:["48211585004374","48211585000115","48211585000549"], aliases:["CAMINHO DE DAMASCO"]},
- {nome:"DR RAFAEL-DUARTINA", ret:0.0615, cnpjs:["47717467000110","46137485000160","13650275000112"], aliases:["STA CASA DE DUARTINA","SANTA CASA MISERICORDIA DUARTIN","MUNICIPIO DE DUARTINA","FUNDO MUNICIPAL DE SAUDE DE DUARTINA"]},
- {nome:"SANTA CASA DE VALINHOS", cnpjs:["46056487000125"], aliases:["IRMANDADE DE SANTA CASA DE MISERICORDIA DE VAL"]},
- {nome:"SANTA CASA DE VINHEDO", ret:0.0615, cnpjs:["46446696000185","30187360000105","72909179000105"], aliases:["MUNICIPIO DE VINHEDO","ADM GESTAO FINANCEIRA","IRMANDADE DA SANTA CASA DE VINHEDO","SANTA CASA DE VINHEDO"]},
- {nome:"DR RAFAEL-HOSPITAL GALIA", ret:0.0615, cnpjs:["02411710000130"], aliases:["IRMANDADE BENEFICENTE SAO JOSE"]},
- {nome:"MED SEVEN (LOUVEIRA)", ret:0.0615, cnpjs:["41828343000126"], aliases:["MED SEVEN"]},
- {nome:"DR RAFAEL-CCRX", cnpjs:["22895445000110"], aliases:["CENTRO CLINICO RADIOLOGICO","CENTRO CLINICO"]},
- {nome:"SEGMAR", ret:0.0615, cnpjs:["49296322000119"], aliases:["SEGMAR SAUDE","SEGMAR"]},
- {nome:"PENSE ROSA - GALIA", ret:0.0615, cnpjs:["49887854000120"], aliases:["SIND RURAL GALIA","SINDICATO RURAL DE GALIA"]},
- {nome:"FAZENDA IGURE", ret:0.0615, cnpjs:["60374982000103"], aliases:["IDALINA DE OLIVEIRA BAPTISTA","FAZENDA IGURE","IGURE"]},
- {nome:"OLIVEIRA CORREA", ret:0.0615, cnpjs:["10265740000103"], aliases:["OLIVEIRA CORREA","CONSTRUT OLIVE"]},
- {nome:"MARMORARIA SIMÕES", ret:0.0615, cnpjs:["07266622000105"], aliases:["MARMORARIA SIMOES"]},
- {nome:"INOVESA", ret:0.0615, cnpjs:["12819899000158"], aliases:["INOVESA"]},
- {nome:"RB ALIMENTOS / TMK", cnpjs:[], aliases:["TMK SERVICOS DE APOIO"]},
- {nome:"SÃO JOSÉ REFRIGERANTES / GARPET", cnpjs:[], aliases:["GARPET"]},
+ {nome:"AHBB", tipo:"ahbb", cnpjs:["45349461000960","45349461000374","45349461000102"], aliases:["ASSOCIACAO H B BRASIL","ASSOCIACAO B BRASIL","ASSOCIACAO HOSPITA","H B BRASIL","HOSPITALAR BENEFICENTE DO BRASIL"]},
+ {nome:"NORDEN", tipo:"convenio", cnpjs:["31097886000167"], aliases:["PERSONAL CARE OPERADORA","PERSONAL CARE"]},
+ {nome:"UNIMED", tipo:"convenio", cnpjs:["66872888000160"], aliases:["UNIMED DE MARILIA"]},
+ {nome:"CASSI", tipo:"convenio", cnpjs:["33719485000127"], aliases:["CASSI","CAIXA DE ASSISTENCIA DOS FUNCIONARI"]},
+ {nome:"APAS", tipo:"convenio", cnpjs:["57272510000135"], aliases:["ASSOCIACAO POLICIAL"]},
+ {nome:"AMAFRESP", tipo:"convenio", cnpjs:["62635990000191"], aliases:["AUDITORES FISCAIS DA RECEITA"]},
+ {nome:"MED SEVEN (LOUVEIRA)", tipo:"convenio", cnpjs:["41828343000126"], aliases:["MED SEVEN"]},
+ {nome:"DR RAFAEL-CAMINHO DE DAMASCO", tipo:"convenio", cnpjs:["48211585004374","48211585000115","48211585000549","48211585003050"], aliases:["CAMINHO DE DAMASCO"]},
+ {nome:"DR RAFAEL-DUARTINA", tipo:"convenio", cnpjs:["47717467000110","46137485000160","13650275000112"], aliases:["STA CASA DE DUARTINA","SANTA CASA MISERICORDIA DUARTIN","SANTA CASA DE MISERICORDIA DE DUARTINA","MUNICIPIO DE DUARTINA","FUNDO MUNICIPAL DE SAUDE DE DUARTINA"]},
+ {nome:"SANTA CASA DE VALINHOS", tipo:"convenio", cnpjs:["46056487000125","30187360000105"], aliases:["IRMANDADE DE SANTA CASA DE MISERICORDIA DE VAL","ADM GESTAO FINANCEIRA"]},
+ {nome:"SANTA CASA DE VINHEDO", tipo:"convenio", cnpjs:["46446696000185","30187360000105","72909179000105"], aliases:["MUNICIPIO DE VINHEDO","ADM GESTAO FINANCEIRA","IRMANDADE DA SANTA CASA DE VINHEDO","SANTA CASA DE VINHEDO"]},
+ {nome:"DR RAFAEL-HOSPITAL GALIA", tipo:"convenio", cnpjs:["02411710000130"], aliases:["IRMANDADE BENEFICENTE SAO JOSE"]},
+ {nome:"DR RAFAEL-CCRX", tipo:"convenio", cnpjs:["22895445000110"], aliases:["CENTRO CLINICO RADIOLOGICO","CENTRO CLINICO"]},
+ {nome:"PREF. GARÇA / FMS", tipo:"prefeitura", cnpjs:["97519019000180","44518371000135"], aliases:["PM GARCA FMS","MUNICIPIO DE GARCA","PREF MUNIC GARCA","PMG FUNDO SOCIAL"]},
+ {nome:"PREF. UBIRAJARA / FMS", tipo:"prefeitura", cnpjs:["11690387000171","46231882000105"], aliases:["FMS UBIRAJARA","PREF.UBIRAJARA","PREF UBIRAJARA"]},
+ {nome:"PREF. VERA CRUZ / FMS", tipo:"prefeitura", cnpjs:["13893179000103","72887078000180"], aliases:["FUNDO M DE SAUDE DO M VERA","PREF MUN VERA C","FMS VERA CRUZ"]},
+ {nome:"PREF. PIRAPOZINHO / FMS", tipo:"prefeitura", cnpjs:["21446346000198","54801121000161"], aliases:["FUNDO MUN SAUDE PIRAPOZINHO","FNS PIRAPOZ","MUNICIPIO DE PIRAPOZINHO","PREFEITURA MUNICIPAL DE PIRAPOZINHO"]},
+ {nome:"PREF. FERNÃO / FMS", tipo:"prefeitura", cnpjs:["13525194000190","01612848000134","36456541000176"], aliases:["SP 351565 FMS","DIAGNOSTICO VIDA","PREFEITURA MUNICIPAL DE FERNAO","MUNICIPIO DE FERNAO"]},
+ {nome:"PREF. ÁLVARO DE CARVALHO / FMS", tipo:"prefeitura", cnpjs:["12077518000102","44518488000119"], aliases:["FUNDO M S ALVARO CARVALHO","PREF MUN DE ALVARO CARVALHO","ALVARO DE CARVALHO"]},
+ {nome:"PREF. ALVINLÂNDIA / UMMES", tipo:"prefeitura", cnpjs:["01488169000103"], aliases:["UNIAO DOS MUNICIPIOS DA MEDIA SOROC","UMMES"]},
+ {nome:"PREF. CÂNDIDO MOTA / FMS", tipo:"prefeitura", cnpjs:["46179958000192","11788735000148"], aliases:["PMCM","FMS CT SUS CUSTEIO"]},
+ {nome:"PREF. GALIA / FMS", tipo:"prefeitura", cnpjs:["12218868000141","44518389000137"], aliases:["SP 351660 FMS","PREFEITURA MUNICIPAL DE GALIA","MUNICIPIO DE GALIA"]},
+ {nome:"SEGMAR", tipo:"empresa", cnpjs:["49296322000119"], aliases:["SEGMAR SAUDE","SEGMAR"]},
+ {nome:"PENSE ROSA - GALIA", tipo:"empresa", cnpjs:["49887854000120"], aliases:["SIND RURAL GALIA","SINDICATO RURAL DE GALIA"]},
+ {nome:"FAZENDA IGURE", tipo:"empresa", cnpjs:["60374982000103"], aliases:["IDALINA DE OLIVEIRA BAPTISTA","FAZENDA IGURE","IGURE"]},
+ {nome:"OLIVEIRA CORREA", tipo:"empresa", cnpjs:["10265740000103"], aliases:["OLIVEIRA CORREA","CONSTRUT OLIVE","CONSTRUTORA OLIVEIRA CORREA"]},
+ {nome:"MARMORARIA SIMÕES", tipo:"empresa", cnpjs:["07266622000105"], aliases:["MARMORARIA SIMOES"]},
+ {nome:"INOVESA", tipo:"empresa", cnpjs:["12819899000158"], aliases:["INOVESA"]},
+ {nome:"RB ALIMENTOS / TMK", tipo:"empresa", cnpjs:["69328912000193","57928464000180"], aliases:["RB DE GARCA","TMK SERVICOS DE APOIO"]},
+ {nome:"SÃO JOSÉ REFRIGERANTES / GARPET", tipo:"empresa", cnpjs:["57125959000170"], aliases:["GARPET","GARCA DISTRIBUIDORA"]},
+ {nome:"ASSOCIAÇÃO DO CÂNCER DE GARÇA", tipo:"empresa", cnpjs:["06078555000132"], aliases:["ASSOCIACAO DOS VOLUNTARIOS NO COMBATE AO CANCER"]},
+ {nome:"CARPELO", tipo:"empresa", cnpjs:["01614365001574"], aliases:["CARPELO"]},
+ {nome:"CONGREGAÇÃO DAS FRANCISCANAS", tipo:"empresa", cnpjs:["59997742000186"], aliases:["CONGREGACAO DAS FRANCISCANA"]},
+ {nome:"CONSTRUIR LOTEADORA", tipo:"empresa", cnpjs:["05044418000114"], aliases:["CONSTRUIR LOTEADORA"]},
+ {nome:"FAZENDA RANCHARIA", tipo:"empresa", cnpjs:["07943042"], aliases:["WHATELY","FAZENDA RANCHARIA"]},
+ {nome:"HENLAU QUÍMICA", tipo:"empresa", cnpjs:["01847902000120"], aliases:["HENLAU QUIMICA"]},
+ {nome:"LEMOR MÓVEIS", tipo:"empresa", cnpjs:["58469069000149"], aliases:["LEANDRO DONIZETE FIRMINO","LEMOR"]},
+ {nome:"MARMOARIA GARÇA / MAXXI", tipo:"empresa", cnpjs:["66921271000198"], aliases:["MAXIMINO CORREA"]},
+ {nome:"VÉRTICE", tipo:"empresa", cnpjs:["12488909000110"], aliases:["VERTICE"]},
+ {nome:"SIMMAR", tipo:"empresa", cnpjs:["51800481000150"], aliases:["SIMMAR MOVEIS","SIMMAR"]},
 ];
 
 // índices para busca rápida
@@ -557,23 +567,28 @@ function conciliar(){
      .map(t=>({...t, _d:new Date(t.data), usado:false}))
      .sort((a,b)=>a._d-b._d);
 
-  const advance = (conv)=> /AHBB|PENSE ROSA/.test(conv||''); // adiantamento tolerado
   const semNF=[];
-
-  function janelaOK(nf,pay){
-    if(!nf._emi) return true;
-    const dd=daysBetween(nf._emi,pay._d); // >0 pgto depois da emissão
-    if(dd<0){ // pgto antes da NF
-      return advance(nf._conv) ? (-dd<=120) : (-dd<=15);
-    }
-    return dd<=270; // janela ampliada
+  // tipo do pagador e janela máxima (dias após a emissão)
+  function tipoOf(conv){ const p=PAYERS.find(x=>x.nome===conv); return p?p.tipo:'convenio'; }
+  function janelaMax(conv){ const t=tipoOf(conv); return t==='ahbb'?20 : t==='prefeitura'?30 : t==='empresa'?30 : 45; }
+  // REGRA DE OURO: pagamento NUNCA antes da emissão. Depois, aceita (atraso é marcado, não bloqueia).
+  function janelaOK(nf,pay){ if(!nf._emi) return true; return daysBetween(nf._emi,pay._d) >= 0; }
+  function atraso(nf,pay){ return nf._emi && daysBetween(nf._emi,pay._d) > janelaMax(nf._conv); }
+  // cenários de retenção possíveis (alvos além de líquido/bruto), respeitando piso de R$ 10 por componente
+  function cenariosRetencao(n){
+    const b=n._bru; if(!b) return [];
+    const comp=(ir)=>({ir: b*ir>=10? b*ir:0, cs: b*0.0465>=10? b*0.0465:0});
+    if(tipoOf(n._conv)==='prefeitura'){ const c=comp(0.012);
+      return [+(b-c.ir-c.cs).toFixed(2), +(b-c.ir).toFixed(2)]; }      // 5,85% ou só IRRF 1,2%
+    const c=comp(0.015);
+    return [+(b-c.ir-c.cs).toFixed(2), +(b-c.cs).toFixed(2)];          // 6,15% ou só CSRF 4,65%
   }
   // candidatas do mesmo pagador ainda não usadas, ordenadas por emissão (cronológico)
-  const cand=(pay)=>nfs.filter(n=>!n.usada && n._conv && n._conv===pay.pagador)
+  const cand=(pay)=>nfs.filter(n=>!n.usada && !n.aproximado && n._conv && n._conv===pay.pagador)
                        .sort((a,b)=>(a._emi||0)-(b._emi||0));
 
   function assign(n,pay,status,grupo){
-    n.usada=true; n.status=status; n.dataPgto=dBR(pay._d);
+    n.usada=true; n.dataPgto=dBR(pay._d); n.status = atraso(n,pay) ? status+' \u00b7 PAGO EM ATRASO' : status;
     if(grupo){ // MULTI: cada NF recebe seu próprio líquido (rateio), Δ%=0 e a nota mostra o TED total
       n.pago = n._liq; n.deltaPct = 0;
     } else {
@@ -583,7 +598,7 @@ function conciliar(){
     const tag = pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'');
     n.identExtrato = grupo? ('[MULTI cobre '+grupo.map(x=>x.numero).join('+')+' · TED total R$ '+fmt(pay.valor)+'] '+tag) : tag;
   }
-  function bothBefore(arr,pay){ return arr.every(n=>!n._emi || (daysBetween(n._emi,pay._d)>=0 && daysBetween(n._emi,pay._d)<=200) || advance(n._conv)); }
+  function bothBefore(arr,pay){ return arr.every(n=>!n._emi || daysBetween(n._emi,pay._d)>=0); }
   function findMulti(C,pay){
     for(let i=0;i<C.length;i++)for(let j=i+1;j<C.length;j++){
       const s=(C[i]._liq||0)+(C[j]._liq||0);
@@ -605,27 +620,20 @@ function conciliar(){
     for(const n of C){ if(n._bru!=null && Math.abs(pay.valor-n._bru)<=TOL && janelaOK(n,pay)){
       assign(n,pay,'LIQUIDADA INTEGRAL'); done=true; break; } }
     if(done) continue;
-    // T2.5 RETENÇÃO do pagador: pago == bruto x (1 - taxa de retenção conhecida)
-    const _r=retOf(pay.pagador);
-    if(_r>0){ for(const n of C){ if(n._bru){
-      const esp=+(n._bru*(1-_r)).toFixed(2);
-      if(Math.abs(pay.valor-esp)<=Math.max(TOL,esp*0.004) && janelaOK(n,pay)){
-        const pctTxt=(_r*100).toFixed(2).replace(/\.?0+$/,'').replace('.',',');
-        assign(n,pay,'LIQUIDADA - retenção '+pctTxt+'% s/ bruto');
-        n.identExtrato += ' · bruto R$ '+fmt(n._bru)+' -'+pctTxt+'%';
-        done=true; break; } } } }
+    // T2.5 RETENÇÃO por tipo: pago == bruto - retenção (testa 1,2% / 5,85% / 6,15% com piso R$10)
+    for(const n of C){ if(n._bru!=null && janelaOK(n,pay)){
+      if(cenariosRetencao(n).some(a=>Math.abs(pay.valor-a)<=Math.max(TOL,0.05))){
+        assign(n,pay,'LIQUIDADA INTEGRAL'); done=true; break; } } }
     if(done) continue;
     // T3 MULTI (2 ou 3 NFs, soma dos líquidos)
     const multi=findMulti(C,pay); if(multi){ multi.forEach(n=>assign(n,pay,'MÚLTIPLOS DEPÓSITOS',multi)); continue; }
-    // T4 GLOSA rigorosa: pago < líquido, diff<=5%, distância<=45d, pgto após emissão
-    for(const n of C){ if(n._liq){ const diff=n._liq-pay.valor; const pct=diff/n._liq;
-      if(diff>TOL && pct<=0.05 && n._emi && daysBetween(n._emi,pay._d)>=0 && daysBetween(n._emi,pay._d)<=45){
-        assign(n,pay,'DIVERGENTE - PROVÁVEL GLOSA'); done=true; break; } } }
-    if(done) continue;
-    // T5 EXCESSO / juros: pago>líquido, excesso<=8%, em até 30 dias
-    for(const n of C){ if(n._liq){ const exc=pay.valor-n._liq; const pct=exc/n._liq;
-      if(exc>TOL && pct<=0.08 && n._emi && daysBetween(n._emi,pay._d)>=0 && daysBetween(n._emi,pay._d)<=90){
-        assign(n,pay,'INTEGRAL c/ juros'); done=true; break; } } }
+    // APROXIMADO: valor próximo (até 8%), pagador certo, depois da emissão -> aba VALIDAR (NÃO concilia sozinho)
+    for(const n of C){ if(n._liq && janelaOK(n,pay)){ const pct=Math.abs(pay.valor-n._liq)/n._liq;
+      if(pct<=0.08){ n.aproximado=true; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
+        n.deltaPct=+(((pay.valor-n._liq)/n._liq)*100).toFixed(2);
+        n.status='APROXIMADO - VALIDAR';
+        n.identExtrato=pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'')+' · CONFERIR (dif '+n.deltaPct+'%)';
+        done=true; break; } } }
     if(done) continue;
     // sem match
     semNF.push(pay);
@@ -640,7 +648,7 @@ function conciliar(){
     if(nf._liq) targets.push([nf._liq,'liq']);
     if(nf._bru){ if(ret>0) targets.push([+(nf._bru*(1-ret)).toFixed(2),'ret']); targets.push([nf._bru,'bru']); }
     if(!targets.length) continue;
-    const ps=semNF.filter(p=>p.pagador===nf._conv && (!nf._emi || daysBetween(nf._emi,p._d)>=-15)).sort((a,b)=>a._d-b._d);
+    const ps=semNF.filter(p=>p.pagador===nf._conv && (!nf._emi || daysBetween(nf._emi,p._d)>=0)).sort((a,b)=>a._d-b._d);
     const MAXP=Math.min(5,ps.length);
     let grp=null, tl=null;
     (function search(start,chosen,sum){
@@ -699,12 +707,11 @@ function renderConc(){
   });
   // estatísticas
   const c={}; nfs.forEach(n=>c[n.status]=(c[n.status]||0)+1);
-  const concil=nfs.filter(n=>n.usada).length, pend=nfs.filter(n=>!n.usada).length;
+  const concil=nfs.filter(n=>n.usada).length, aprx=nfs.filter(n=>n.aproximado).length, pend=nfs.filter(n=>!n.usada && !n.aproximado).length;
   const st=document.getElementById('conc-stats'); st.innerHTML='';
   const add=(lab,val)=>{const d=document.createElement('div');d.className='stat';d.innerHTML=`<b>${val}</b><span>${lab}</span>`;st.appendChild(d);};
-  add('NFs conciliadas',concil); add('NFs pendentes',pend); add('Pgtos sem NF',semNF.length);
-  add('Glosas',c['DIVERGENTE - PROVÁVEL GLOSA']||0); add('Múltiplos',(c['MÚLTIPLOS DEPÓSITOS']||0));
-  document.getElementById('conc-msg').textContent=`${concil} conciliadas · ${pend} pendentes · ${semNF.length} pgtos sem NF`;
+  add('NFs conciliadas',concil); add('Aproximadas (validar)',aprx); add('NFs pendentes',pend); add('Pgtos sem NF',semNF.length);
+  document.getElementById('conc-msg').textContent=`${concil} conciliadas · ${aprx} a validar · ${pend} pendentes · ${semNF.length} pgtos sem NF`;
   const ts=document.querySelector('#tbl-sem tbody'); if(ts){ ts.innerHTML='';
     semNF.forEach(p=>{ const tr=document.createElement('tr');
       const opts=['','IGNORAR','REFERE-SE A NF FORA DA BASE'].map(o=>`<option${(p.obs||'')===o?' selected':''}>${o}</option>`).join('');
@@ -736,9 +743,13 @@ function exportXLSX(){
     'Convênio':n._conv,'Nº NF':n.numero,'Tomador':n.tomador,'CNPJ':n.cnpj,
     'Emissão':n.dataEmissao,'Competência':n.competencia,'Bruto':n._bru,'Líquido':n._liq,
     'Pago':n.pago,'Data Pgto':n.dataPgto,'Δ%':n.deltaPct,'Status':n.status,'Identificação no Extrato':n.identExtrato}));
-  const pend=nfs.filter(n=>!n.usada).map(n=>({
+  const pend=nfs.filter(n=>!n.usada && !n.aproximado).map(n=>({
     'Convênio':n._conv,'Nº NF':n.numero,'Tomador':n.tomador,'CNPJ':n.cnpj,
     'Emissão':n.dataEmissao,'Competência':n.competencia,'Bruto':n._bru,'Líquido':n._liq,'Status':'PENDENTE'}));
+  const aprox=nfs.filter(n=>n.aproximado).map(n=>({
+    'Convênio':n._conv,'Nº NF':n.numero,'Tomador':n.tomador,'CNPJ':n.cnpj,
+    'Emissão':n.dataEmissao,'Competência':n.competencia,'Bruto':n._bru,'Líquido':n._liq,
+    'Pago':n.pago,'Data Pgto':n.dataPgto,'Δ%':n.deltaPct,'Identificação no Extrato':n.identExtrato,'Sua validação':''}));
   const sem=semNF.map(p=>({'Data':dBR(new Date(p.data)),'Tipo':p.tipo,'Valor':p.valor,
     'Documento':p.doc,'Pagador':p.pagador||'','Memo':p.memo,'Observação':p.obs||''}));
   const porConv={}; nfs.forEach(n=>{const k=n._conv||'(sem convênio)'; porConv[k]=porConv[k]||{conv:k,total:0,conc:0,pend:0,liq:0,pago:0};
@@ -748,12 +759,14 @@ function exportXLSX(){
   const resumoGeral=[
     {'Indicador':'Total de NFs','Valor':nfs.length},
     {'Indicador':'NFs conciliadas','Valor':nfs.filter(n=>n.usada).length},
-    {'Indicador':'NFs pendentes','Valor':nfs.filter(n=>!n.usada).length},
+    {'Indicador':'NFs pendentes','Valor':nfs.filter(n=>!n.usada && !n.aproximado).length},
+    {'Indicador':'NFs aproximadas (validar)','Valor':nfs.filter(n=>n.aproximado).length},
     {'Indicador':'Pagamentos sem NF','Valor':semNF.length},
     {'Indicador':'Cobertura de baixa (%)','Valor':nfs.length?Math.round(nfs.filter(n=>n.usada).length/nfs.length*100):0},
     {'Indicador':'Gerado em','Valor':new Date().toLocaleString('pt-BR')},
   ];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(concl.length?concl:[{'(vazio)':''}]),'NFs Conciliadas');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(aprox.length?aprox:[{'(nenhum)':''}]),'Aproximado - Validar');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pend.length?pend:[{'(vazio)':''}]),'NFs Pendentes');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sem.length?sem:[{'(vazio)':''}]),'Pagamentos sem NF');
   const wsR=XLSX.utils.json_to_sheet(resumoGeral);
