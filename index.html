@@ -366,7 +366,8 @@ async function parsePDF(arrayBuffer){
     if(which==='max') return Math.max(...ms);
     return which==='last'?ms[ms.length-1]:ms[0]; };
   // --- NÚMERO: DANFSe nacional / linha de recibo (ISSWeb Marília) / fallback ---
-  let numero = (T.match(/N[úu]mero\s+da\s+NFS-?e\s+(\d{3,9})/i)||[])[1]
+  let numero = (T.match(/N[úu]mero\s+da\s+NFS-?e\s+(\d{1,9})\s+Compet/i)||[])[1]   // DANFSe: número vem antes de "Competência" (aceita 1-9 díg, ex.: NF 53)
+            || (T.match(/N[úu]mero\s+da\s+NFS-?e\s+(\d{3,9})/i)||[])[1]              // ISSWeb/outros: >=3 díg, evita pegar código de verificação
             || (T.match(/NFS-?e\s+DE\s+N[ÚU]MERO\s+(\d{3,9})/i)||[])[1] || '';
   let compet = (T.match(/Compet[êe]ncia\s+da\s+NFS-?e\s+(\d{2}\/\d{2}\/\d{4})/i)||[])[1] || '';
   let dataE  = (T.match(/emiss[ãa]o\s+da\s+NFS-?e\s+(\d{2}\/\d{2}\/\d{4})/i)||[])[1]
@@ -586,11 +587,14 @@ function conciliar(){
   // cenários de retenção possíveis (alvos além de líquido/bruto), respeitando piso de R$ 10 por componente
   function cenariosRetencao(n){
     const b=n._bru; if(!b) return [];
+    const r2=(x)=>+x.toFixed(2);
     const comp=(ir)=>({ir: b*ir>=10? b*ir:0, cs: b*0.0465>=10? b*0.0465:0});
     if(tipoOf(n._conv)==='prefeitura'){ const c=comp(0.012);
-      return [+(b-c.ir-c.cs).toFixed(2), +(b-c.ir).toFixed(2)]; }      // 5,85% ou só IRRF 1,2%
+      // municípios retêm 1,2% FLAT (sem piso R$10, sem CSRF) -> bruto×0,988 é o caso dominante
+      return [r2(b*0.988), r2(b-c.ir-c.cs), r2(b-c.ir), r2(b)]; }
     const c=comp(0.015);
-    return [+(b-c.ir-c.cs).toFixed(2), +(b-c.cs).toFixed(2)];          // 6,15% ou só CSRF 4,65%
+    // empresas/convênios: 6,15% flat, 4,65% flat, e versões com piso
+    return [r2(b*0.9385), r2(b*0.9535), r2(b-c.ir-c.cs), r2(b-c.cs)];
   }
   // candidatas do mesmo pagador ainda não usadas, ordenadas por emissão (cronológico)
   const cand=(pay)=>nfs.filter(n=>!n.usada && !n.aproximado && n._conv && n._conv===pay.pagador)
@@ -608,15 +612,33 @@ function conciliar(){
     n.identExtrato = grupo? ('[MULTI cobre '+grupo.map(x=>x.numero).join('+')+' · TED total R$ '+fmt(pay.valor)+'] '+tag) : tag;
   }
   function bothBefore(arr,pay){ return arr.every(n=>!n._emi || daysBetween(n._emi,pay._d)>=0); }
+  // valores líquidos candidatos de uma NF (líquido, bruto e cenários de retenção)
+  function valsOf(n){
+    const set=new Set();
+    if(n._liq!=null) set.add(+(+n._liq).toFixed(2));
+    if(n._bru!=null) set.add(+(+n._bru).toFixed(2));
+    cenariosRetencao(n).forEach(v=>{ if(v!=null) set.add(v); });
+    return [...set];
+  }
+  // MULTI: 1 pagamento cobre 2-4 NFs; cada NF contribui com QUALQUER um dos seus valores candidatos
+  // (testa retenção por NF, não só o líquido cru). 4 NFs só em último caso.
   function findMulti(C,pay){
-    for(let i=0;i<C.length;i++)for(let j=i+1;j<C.length;j++){
-      const s=(C[i]._liq||0)+(C[j]._liq||0);
-      if(Math.abs(pay.valor-s)<=TOL && bothBefore([C[i],C[j]],pay)) return [C[i],C[j]];
+    const E=C.filter(n=>bothBefore([n],pay));
+    for(let k=2;k<=4;k++){
+      let out=null;
+      (function rec(start,chosen,sum){
+        if(out) return;
+        if(chosen.length===k){ if(Math.abs(sum-pay.valor)<=Math.max(TOL,0.05)) out=chosen.slice(); return; }
+        for(let i=start;i<E.length;i++){
+          for(const v of valsOf(E[i])){
+            chosen.push(E[i]); rec(i+1,chosen,sum+v); chosen.pop();
+            if(out) return;
+          }
+        }
+      })(0,[],0);
+      if(out) return out;
     }
-    for(let i=0;i<C.length;i++)for(let j=i+1;j<C.length;j++)for(let k=j+1;k<C.length;k++){
-      const s=(C[i]._liq||0)+(C[j]._liq||0)+(C[k]._liq||0);
-      if(Math.abs(pay.valor-s)<=TOL && bothBefore([C[i],C[j],C[k]],pay)) return [C[i],C[j],C[k]];
-    } return null;
+    return null;
   }
 
   for(const pay of pays){
@@ -636,13 +658,16 @@ function conciliar(){
     if(done) continue;
     // T3 MULTI (2 ou 3 NFs, soma dos líquidos)
     const multi=findMulti(C,pay); if(multi){ multi.forEach(n=>assign(n,pay,'MÚLTIPLOS DEPÓSITOS',multi)); continue; }
-    // APROXIMADO: valor próximo (até 8%), pagador certo, depois da emissão -> aba VALIDAR (NÃO concilia sozinho)
-    for(const n of C){ if(n._liq && janelaOK(n,pay)){ const pct=Math.abs(pay.valor-n._liq)/n._liq;
-      if(pct<=0.08){ n.aproximado=true; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
+    // APROXIMADO: entre as notas no prazo (<=60d) e dentro de 8%, escolhe a de MENOR diferença de valor
+    // (não a mais antiga) -> aba VALIDAR (NÃO concilia sozinho)
+    { let bestN=null,bestPct=0.0801;
+      for(const n of C){ if(n._liq && janelaOK(n,pay)){ const pct=Math.abs(pay.valor-n._liq)/n._liq;
+        if(pct<bestPct){ bestPct=pct; bestN=n; } } }
+      if(bestN){ const n=bestN; n.aproximado=true; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
         n.deltaPct=+(((pay.valor-n._liq)/n._liq)*100).toFixed(2);
         n.status='APROXIMADO - VALIDAR';
         n.identExtrato=pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'')+' · CONFERIR (dif '+n.deltaPct+'%)';
-        done=true; break; } } }
+        done=true; } }
     if(done) continue;
     // sem match
     semNF.push(pay);
