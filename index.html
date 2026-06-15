@@ -390,6 +390,14 @@ async function parsePDF(arrayBuffer){
   let tomador = noms[1] || '';
   if(!tomador){ const m=T.match(/Nome\/Raz[ãa]o Social\s+([A-ZÀ-Ú][A-ZÀ-Ú ]{5,55}?)\s{2,}/); if(m) tomador=m[1].trim(); }
   if(!tomador){ const tm=T.match(/Tomador[^A-ZÀ-Ú]{0,30}([A-ZÀ-Ú][A-ZÀ-Ú \.\-&]{6,60})/); if(tm) tomador=tm[1].trim(); }
+  // DANFSe 2026: nome do tomador vem na seção "TOMADOR DO SERVIÇO"
+  { const ti=T.search(/TOMADOR DO SERVI/i);
+    if(ti>=0 && (!tomador || /PROIMAGEM/i.test(tomador))){ const seg=T.slice(ti,ti+600);
+      const m=seg.match(/E-?mail\s+([A-ZÀ-Ú][A-ZÀ-Ú0-9 .,&'\/-]{4,60}?)\s+(?:-|\d|Endere|Munic)/i);
+      if(m && !/PROIMAGEM/i.test(m[1])) tomador=m[1].trim(); } }
+  // SALVAGUARDA: a PROIMAGEM é a EMITENTE, nunca o tomador/pagador
+  if(/PROIMAGEM/i.test(tomador)) tomador='';
+  if(cnpj==='14882395000108') cnpj='';
   return {numero,dataEmissao:dataE,competencia:compet||dataE,bruto,liquido,tomador,cnpj,_pdfText:true};
 }
 
@@ -572,7 +580,8 @@ function conciliar(){
   function tipoOf(conv){ const p=PAYERS.find(x=>x.nome===conv); return p?p.tipo:'convenio'; }
   function janelaMax(conv){ const t=tipoOf(conv); return t==='ahbb'?20 : t==='prefeitura'?30 : t==='empresa'?30 : 45; }
   // REGRA DE OURO: pagamento NUNCA antes da emissão. Depois, aceita (atraso é marcado, não bloqueia).
-  function janelaOK(nf,pay){ if(!nf._emi) return true; return daysBetween(nf._emi,pay._d) >= 0; }
+  const MAX_PRAZO=60; // teto: além disso não concilia (evita casamento por coincidência de valor)
+  function janelaOK(nf,pay){ if(!nf._emi) return true; const dd=daysBetween(nf._emi,pay._d); return dd>=0 && dd<=MAX_PRAZO; }
   function atraso(nf,pay){ return nf._emi && daysBetween(nf._emi,pay._d) > janelaMax(nf._conv); }
   // cenários de retenção possíveis (alvos além de líquido/bruto), respeitando piso de R$ 10 por componente
   function cenariosRetencao(n){
@@ -668,6 +677,31 @@ function conciliar(){
       grp.forEach(p=>{ const ix=semNF.indexOf(p); if(ix>=0) semNF.splice(ix,1); });
     }
   }
+  // PASSE FINAL DE VALIDAÇÃO: NF pendente x pagamento sem NF (mesmo pagador, OU cheque/não identificado), por valor.
+  // Não concilia sozinho — joga na aba "Aproximado - Validar" para a Amanda confirmar. Pega atrasos >60d e depósitos de cheque.
+  for(const nf of nfs){
+    if(nf.usada || nf.aproximado || !nf._emi || !nf._liq) continue;
+    const alvos=[nf._liq, nf._bru].concat(cenariosRetencao(nf)).filter(v=>v!=null);
+    let achei=-1;
+    for(let i=0;i<semNF.length;i++){ const p=semNF[i]; if(!p._d) continue;
+      if(daysBetween(nf._emi,p._d)<0) continue;                 // nunca antes da emissão
+      const mesmo = p.pagador===nf._conv;
+      const cheque = !p.pagador || /CHEQUE|DEP CHEQUE|DEPOSITO|DEP\.|24H/i.test(p.memo||'');
+      if(!mesmo && !cheque) continue;
+      const bate = mesmo ? alvos.some(a=>Math.abs(p.valor-a)<=Math.max(TOL,a*0.02))   // mesmo pagador: aceita retenção
+                         : (Math.abs(p.valor-nf._liq)<=TOL || Math.abs(p.valor-nf._bru)<=TOL); // cheque/ni: só valor exato
+      if(bate){ achei=i; break; }
+    }
+    if(achei>=0){ const p=semNF[achei];
+      nf.aproximado=true; nf.pago=p.valor; nf.dataPgto=dBR(p._d);
+      nf.deltaPct = nf._liq? +(((p.valor-nf._liq)/nf._liq)*100).toFixed(2):0;
+      const dd=daysBetween(nf._emi,p._d);
+      nf.status='APROXIMADO - VALIDAR';
+      nf.identExtrato=(p.tipo||'CREDIT')+' '+dBR(p._d)+' R$ '+fmt(p.valor)+' · '+(p.pagador||'não identificado/cheque')+(dd>60?(' · '+dd+'d após emissão'):'')+' · CONFERIR';
+      semNF.splice(achei,1);
+    }
+  }
+
   DB.conc={nfs, semNF};
   try{ if(DB.nfs.length) localStorage.setItem('pi_sessao',_snap()); }catch(e){}
   renderConc();
