@@ -658,18 +658,8 @@ function conciliar(){
     if(done) continue;
     // T3 MULTI (2 ou 3 NFs, soma dos líquidos)
     const multi=findMulti(C,pay); if(multi){ multi.forEach(n=>assign(n,pay,'MÚLTIPLOS DEPÓSITOS',multi)); continue; }
-    // APROXIMADO: entre as notas no prazo (<=60d) e dentro de 8%, escolhe a de MENOR diferença de valor
-    // (não a mais antiga) -> aba VALIDAR (NÃO concilia sozinho)
-    { let bestN=null,bestPct=0.0801;
-      for(const n of C){ if(n._liq && janelaOK(n,pay)){ const pct=Math.abs(pay.valor-n._liq)/n._liq;
-        if(pct<bestPct){ bestPct=pct; bestN=n; } } }
-      if(bestN){ const n=bestN; n.aproximado=true; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
-        n.deltaPct=+(((pay.valor-n._liq)/n._liq)*100).toFixed(2);
-        n.status='APROXIMADO - VALIDAR';
-        n.identExtrato=pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'')+' · CONFERIR (dif '+n.deltaPct+'%)';
-        done=true; } }
-    if(done) continue;
-    // sem match
+    // (APROXIMADO de 1 pagamento foi movido para DEPOIS do parcelado exato, mais abaixo)
+    // sem match exato -> vai para o pool, parcelado/aproximado tratam depois
     semNF.push(pay);
   }
 
@@ -700,6 +690,48 @@ function conciliar(){
       nf.dataPgto=dBR(grp[grp.length-1]._d);
       nf.identExtrato='PARCELADO ('+grp.length+'x): '+grp.map(p=>dBR(p._d)+' R$ '+fmt(p.valor)).join(' + ');
       grp.forEach(p=>{ const ix=semNF.indexOf(p); if(ix>=0) semNF.splice(ix,1); });
+    }
+  }
+  // --- PARCELADO APROXIMADO: nota pendente cujo conjunto de 2-4 pagamentos do mesmo pagador
+  //     soma a ATÉ 1,5% do bruto ou líquido -> aba VALIDAR (não concilia sozinho).
+  //     Pega TEDs fracionados que não fecham exato (ex.: prefeitura que paga ~0,6% a mais/menos). ---
+  for(const nf of nfs){
+    if(nf.usada || nf.aproximado || !nf._conv || !nf._bru) continue;
+    const targets=[nf._liq, nf._bru].filter(v=>v!=null);
+    const ps=semNF.filter(p=>p.pagador===nf._conv && (!nf._emi || daysBetween(nf._emi,p._d)>=0));
+    if(ps.length<2 || ps.length>25) continue;   // trava: evita explosão combinatória
+    let best=null,bestRel=0.015;
+    const combosOf=(k)=>{ const out=[]; const rec=(st,ch)=>{ if(ch.length===k){out.push(ch.slice());return;}
+      for(let i=st;i<ps.length;i++){ ch.push(i); rec(i+1,ch); ch.pop(); } }; rec(0,[]); return out; };
+    for(let k=2;k<=Math.min(4,ps.length);k++){
+      for(const combo of combosOf(k)){
+        const sum=combo.reduce((a,i)=>a+ps[i].valor,0);
+        for(const t of targets){ const rel=Math.abs(sum-t)/t; if(rel<bestRel){ bestRel=rel; best={combo,sum}; } }
+      }
+    }
+    if(best){
+      const grp=best.combo.map(i=>ps[i]);
+      nf.aproximado=true; nf.pago=+best.sum.toFixed(2);
+      nf.deltaPct = nf._liq? +(((best.sum-nf._liq)/nf._liq)*100).toFixed(2):0;
+      nf.dataPgto=dBR(grp[grp.length-1]._d);
+      nf.status='APROXIMADO - VALIDAR';
+      nf.identExtrato='PARCELADO ('+grp.length+'x) APROX: '+grp.map(p=>dBR(p._d)+' R$ '+fmt(p.valor)).join(' + ')+' = R$ '+fmt(best.sum)+' \u00b7 CONFERIR (dif '+nf.deltaPct+'%)';
+      grp.forEach(p=>{ const ix=semNF.indexOf(p); if(ix>=0) semNF.splice(ix,1); });
+    }
+  }
+  // --- APROXIMADO (1 pagamento): roda DEPOIS do parcelado. Para cada pagamento restante, acha a nota
+  //     (no prazo<=60d) de MENOR diferença dentro de 8% -> aba VALIDAR (não concilia sozinho). ---
+  for(let pi=0; pi<semNF.length; pi++){
+    const pay=semNF[pi];
+    const C=nfs.filter(n=>!n.usada && !n.aproximado && n._conv && n._conv===pay.pagador);
+    let bestN=null,bestPct=0.0801;
+    for(const n of C){ if(n._liq && janelaOK(n,pay)){ const pct=Math.abs(pay.valor-n._liq)/n._liq;
+      if(pct<bestPct){ bestPct=pct; bestN=n; } } }
+    if(bestN){ const n=bestN; n.aproximado=true; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
+      n.deltaPct=+(((pay.valor-n._liq)/n._liq)*100).toFixed(2);
+      n.status='APROXIMADO - VALIDAR';
+      n.identExtrato=pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' \u00b7 ID '+pay.fitid):'')+' \u00b7 CONFERIR (dif '+n.deltaPct+'%)';
+      semNF.splice(pi,1); pi--;
     }
   }
   // PASSE FINAL DE VALIDAÇÃO: NF pendente x pagamento sem NF (mesmo pagador, OU cheque/não identificado), por valor.
