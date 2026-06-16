@@ -470,8 +470,6 @@ function classificarTx(tx){
   if(tx.manual){ tx.classe='IGNORAR'; tx.motivo='ignorado manualmente'; return; }
   const m=(tx.memo||'').toUpperCase();
   const v=tx.valor||0;
-  { const _d=tx.data?(('0'+tx.data.getDate()).slice(-2)+'/'+('0'+(tx.data.getMonth()+1)).slice(-2)+'/'+tx.data.getFullYear()):'';
-    if(TEDS_IGNORAR.some(p=>p[0]===_d && Math.abs(v-p[1])<0.05)){ tx.classe='IGNORAR'; tx.motivo='TED fora da base (lista de exclusão)'; return; } }
   // documento (CNPJ 14 / CPF 11) no memo
   const dd=[...(tx.memo||'').matchAll(/\b(\d{11}|\d{14})\b/g)].map(x=>x[1]);
   // prioriza CNPJ
@@ -487,6 +485,8 @@ function classificarTx(tx){
   }
   // candidato a recebível: identifica pagador
   const pag = identificarPagador(doc, tx.memo);
+  if(pag && PAGADORES_IGNORAR.includes(pag)){ tx.classe='IGNORAR'; tx.motivo='Pagador fora das conferências ('+pag+')'; return; }
+  if(pag==='AHBB' && v>20000){ tx.classe='IGNORAR'; tx.motivo='AHBB acima de R$ 20.000 (notas fora da base)'; return; }
   if(pag){ tx.classe='CONCILIAR'; tx.pagador=pag; tx.motivo='Pagador identificado'; return; }
   if(doc && doc.length===14){ tx.classe='A IDENTIFICAR'; tx.motivo='CNPJ não mapeado'; return; }
   // CPF de pessoa física e sem mapeamento
@@ -559,7 +559,7 @@ function renderBoletos(){
 const TOL=0.02;
 /* === CONFIG DE EXCEÇÕES (sobrevive a re-runs) === */
 const PAGADORES_IGNORAR = ['CONGREGAÇÃO DAS FRANCISCANAS'];           // NFs fora das conferências
-const TEDS_IGNORAR = [['04/04/2025',20096.16],['02/05/2025',20034.93],['06/06/2025',30733.89],['03/07/2025',25685.80],['07/08/2025',24064.68],['05/09/2025',21233.60],['14/10/2025',25000.85],['10/11/2025',25126.33],['12/12/2025',27740.66],['14/01/2026',25126.34],['11/02/2026',24315.90],['11/03/2026',21918.56],['10/04/2026',25025.40]]; // TEDs AHBB > R$ 20.000 fora da base
+// AHBB > R$ 20.000 é excluída por regra (em classificarTx), não por lista fixa.
 const BAIXA_MANUAL = {'32810':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'},'32811':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'},'32812':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'}};
 function conciliar(){
   // prepara NFs
