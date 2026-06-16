@@ -591,7 +591,7 @@ function conciliar(){
     const comp=(ir)=>({ir: b*ir>=10? b*ir:0, cs: b*0.0465>=10? b*0.0465:0});
     if(tipoOf(n._conv)==='prefeitura'){ const c=comp(0.012);
       // municípios retêm 1,2% FLAT (sem piso R$10, sem CSRF) -> bruto×0,988 é o caso dominante
-      return [r2(b*0.988), r2(b-c.ir-c.cs), r2(b-c.ir), r2(b)]; }
+      return [r2(b*0.988), r2(b*0.952), r2(b-c.ir-c.cs), r2(b-c.ir), r2(b)]; }  // +4,8% (IRRF+ISS, ex.: Ubirajara)
     const c=comp(0.015);
     // empresas/convênios: 6,15% flat, 4,65% flat, e versões com piso
     return [r2(b*0.9385), r2(b*0.9535), r2(b-c.ir-c.cs), r2(b-c.cs)];
