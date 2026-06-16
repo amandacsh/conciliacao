@@ -470,6 +470,8 @@ function classificarTx(tx){
   if(tx.manual){ tx.classe='IGNORAR'; tx.motivo='ignorado manualmente'; return; }
   const m=(tx.memo||'').toUpperCase();
   const v=tx.valor||0;
+  { const _d=tx.data?(('0'+tx.data.getDate()).slice(-2)+'/'+('0'+(tx.data.getMonth()+1)).slice(-2)+'/'+tx.data.getFullYear()):'';
+    if(TEDS_IGNORAR.some(p=>p[0]===_d && Math.abs(v-p[1])<0.05)){ tx.classe='IGNORAR'; tx.motivo='TED fora da base (lista de exclusão)'; return; } }
   // documento (CNPJ 14 / CPF 11) no memo
   const dd=[...(tx.memo||'').matchAll(/\b(\d{11}|\d{14})\b/g)].map(x=>x[1]);
   // prioriza CNPJ
@@ -555,9 +557,13 @@ function renderBoletos(){
    MOTOR DE CONCILIAÇÃO (hierarquia do Manual)
    ========================================================================= */
 const TOL=0.02;
+/* === CONFIG DE EXCEÇÕES (sobrevive a re-runs) === */
+const PAGADORES_IGNORAR = ['CONGREGAÇÃO DAS FRANCISCANAS'];           // NFs fora das conferências
+const TEDS_IGNORAR = [['04/04/2025',20096.16],['02/05/2025',20034.93],['06/06/2025',30733.89],['03/07/2025',25685.80],['07/08/2025',24064.68],['05/09/2025',21233.60],['14/10/2025',25000.85],['10/11/2025',25126.33],['12/12/2025',27740.66],['14/01/2026',25126.34],['11/02/2026',24315.90],['11/03/2026',21918.56],['10/04/2026',25025.40]]; // TEDs AHBB > R$ 20.000 fora da base
+const BAIXA_MANUAL = {'32810':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'},'32811':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'},'32812':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'}};
 function conciliar(){
   // prepara NFs
-  const nfs = DB.nfs.map(n=>({...n,
+  const nfs = DB.nfs.filter(n=>!PAGADORES_IGNORAR.includes(n.convenio||identificarPagador(n.cnpj,n.tomador)||'')).map(n=>({...n,
      _emi:parseDateBR(n.dataEmissao), _liq:num(n.liquido), _bru:num(n.bruto),
      _conv:n.convenio||identificarPagador(n.cnpj,n.tomador)||'', usada:false,
      status:'PENDENTE', pago:null, dataPgto:null, identExtrato:'', deltaPct:null}));
@@ -571,6 +577,8 @@ function conciliar(){
       nf.identExtrato='BOLETO Nosso Nº '+b.nosso+' · pago '+b.dataPgto+' · R$ '+fmt(b.valor);
     }
   });
+  // --- BAIXA MANUAL: pagamentos sem identificação no banco (ex.: Pense Rosa 2x R$ 8.000) ---
+  for(const nf of nfs){ const b=BAIXA_MANUAL[String(nf.numero)]; if(b && !nf.usada){ nf.usada=true; nf.status='LIQUIDADA - baixa manual'; nf.pago=b.pago; nf.dataPgto=b.data||''; nf.deltaPct=0; nf.identExtrato=b.obs; } }
   // pagamentos a conciliar, ordenados cronologicamente (mais antigo primeiro)
   const pays = DB.txs.filter(t=>t.classe==='CONCILIAR')
      .map(t=>({...t, _d:new Date(t.data), usado:false}))
