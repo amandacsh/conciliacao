@@ -851,6 +851,18 @@ function exportXLSX(){
     'Pago':n.pago,'Data Pgto':n.dataPgto,'Δ%':n.deltaPct,'Identificação no Extrato':n.identExtrato,'Sua validação':''}));
   const sem=semNF.map(p=>({'Data':dBR(new Date(p.data)),'Tipo':p.tipo,'Valor':p.valor,
     'Documento':p.doc,'Pagador':p.pagador||'','Memo':p.memo,'Observação':p.obs||''}));
+  // === EM ATRASO: NFs pendentes que passaram da janela de pagamento do pagador ===
+  const _hoje=new Date();
+  const _tipoP=(c)=>{const p=PAYERS.find(x=>x.nome===c);return p?p.tipo:'convenio';};
+  const _janelaP=(c)=>{const t=_tipoP(c);return t==='ahbb'?20:t==='prefeitura'?30:t==='empresa'?30:45;};
+  const _atr=nfs.filter(n=>!n.usada && !n.aproximado && n._emi).map(n=>{
+      const dias=Math.round((_hoje-n._emi)/86400000), jan=_janelaP(n._conv);
+      return {n,atraso:dias-jan,dias,jan};
+    }).filter(x=>x.atraso>0).sort((a,b)=>(a.n._conv||'').localeCompare(b.n._conv||'')||b.atraso-a.atraso);
+  const emAtraso=_atr.map(x=>({'Convênio/Pagador':x.n._conv,'Nº NF':x.n.numero,'Tomador':x.n.tomador,'CNPJ':x.n.cnpj,
+    'Emissão':x.n.dataEmissao,'Líquido':x.n._liq,'Dias desde emissão':x.dias,'Janela (dias)':x.jan,'Dias em atraso':x.atraso}));
+  const _pa={}; _atr.forEach(x=>{const k=x.n._conv||'(sem pagador)'; _pa[k]=_pa[k]||{p:k,q:0,v:0,m:0}; _pa[k].q++; _pa[k].v+=x.n._liq||0; if(x.atraso>_pa[k].m)_pa[k].m=x.atraso;});
+  const atrasoPorPag=Object.values(_pa).sort((a,b)=>b.v-a.v).map(r=>({'Pagador':r.p,'NFs em atraso':r.q,'Total a receber (R$)':+r.v.toFixed(2),'Maior atraso (dias)':r.m}));
   const porConv={}; nfs.forEach(n=>{const k=n._conv||'(sem convênio)'; porConv[k]=porConv[k]||{conv:k,total:0,conc:0,pend:0,liq:0,pago:0};
     porConv[k].total++; if(n.usada){porConv[k].conc++;porConv[k].pago+=n.pago||0;}else porConv[k].pend++; porConv[k].liq+=n._liq||0;});
   const resumoConv=Object.values(porConv).map(r=>({'Convênio':r.conv,'NFs':r.total,'Conciliadas':r.conc,'Pendentes':r.pend,
@@ -868,6 +880,8 @@ function exportXLSX(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(aprox.length?aprox:[{'(nenhum)':''}]),'Aproximado - Validar');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pend.length?pend:[{'(vazio)':''}]),'NFs Pendentes');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sem.length?sem:[{'(vazio)':''}]),'Pagamentos sem NF');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(atrasoPorPag.length?atrasoPorPag:[{'(nenhum em atraso)':''}]),'Em Atraso - por Pagador');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(emAtraso.length?emAtraso:[{'(nenhum em atraso)':''}]),'Em Atraso - Detalhe');
   const wsR=XLSX.utils.json_to_sheet(resumoGeral);
   XLSX.utils.sheet_add_json(wsR,resumoConv,{origin:'D1'});
   XLSX.utils.book_append_sheet(wb,wsR,'Resumo');
