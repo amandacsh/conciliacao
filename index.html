@@ -495,8 +495,11 @@ function classificarTx(tx){
 function ingestOFX(text){
   const novas=parseOFX(text);
   novas.forEach(classificarTx);
-  // evita duplicar (fitid)
-  for(const t of novas){ if(!DB.txs.find(x=>x.fitid&&x.fitid===t.fitid)) DB.txs.push(t); }
+  // evita duplicar: por FITID; sem FITID, por data+valor+memo (impede reuso ao subir o MESMO extrato)
+  const _key=x=>x.fitid?('F:'+x.fitid):('M:'+String(x.data)+'|'+x.valor+'|'+((x.memo||'').replace(/\s+/g,' ').trim()));
+  const _vistos=new Set(DB.txs.map(_key)); let _dup=0;
+  for(const t of novas){ const k=_key(t); if(_vistos.has(k)){ _dup++; continue; } _vistos.add(k); DB.txs.push(t); }
+  if(_dup>0){ const el=document.getElementById('ofx-msg'); if(el) el.textContent=_dup+' lançamento(s) repetido(s) ignorado(s) (já estavam no extrato).'; }
   saveTXs(); renderOFX();
 }
 function renderOFX(){
