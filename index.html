@@ -85,11 +85,14 @@
       <input type="file" id="file-nf" multiple accept=".pdf,.xml">
     </div>
     <div class="row" style="margin-top:14px">
+      <button class="btn small" id="btn-folder-nf">📁 Carregar PASTA de NFs (inclui subpastas)</button>
+      <input type="file" id="folder-nf" webkitdirectory directory multiple>
       <span id="nf-count" class="muted">0 NFs acumuladas</span>
       <span style="flex:1"></span>
       <button class="btn sec small" id="btn-add-nf">+ Linha manual</button>
       <button class="btn danger small" id="btn-clear-nf">Limpar todas as NFs</button>
     </div>
+    <p class="muted" style="margin-top:6px;font-size:12px">Dica: escolha a pasta <code>1 - TODAS</code> — ela já traz a subpasta <code>NF liquidadas</code> junto, então o motor enxerga <b>todas</b> as notas (pagas + não pagas) e não casa pagamento na NF errada.</p>
     <div id="nf-log" class="muted" style="margin-top:8px"></div>
   </div>
   <div class="card">
@@ -117,7 +120,10 @@
       <input type="file" id="file-ofx" multiple accept=".ofx">
     </div>
     <div class="row" style="margin-top:14px">
+      <button class="btn small" id="btn-folder-ofx">📁 Carregar PASTA de extratos (.ofx)</button>
+      <input type="file" id="folder-ofx" webkitdirectory directory multiple>
       <span id="ofx-count" class="muted">0 transações</span>
+      <span id="ofx-msg" class="muted"></span>
       <span style="flex:1"></span>
       <label class="muted"><input type="checkbox" id="only-conc"> mostrar só "a conciliar"</label>
       <button class="btn danger small" id="btn-clear-ofx">Limpar extrato</button>
@@ -258,6 +264,10 @@ const PAYERS = [
 // índices para busca rápida
 const CNPJ2PAYER = {};
 PAYERS.forEach(p=>p.cnpjs.forEach(c=>CNPJ2PAYER[c]=p.nome));
+// índice por RAIZ (8 primeiros dígitos do CNPJ) -> pega filiais de um pagador conhecido
+// (ex.: INOVESA matriz /0001-58 no dicionário, mas a NF veio da filial /0005-81)
+const RAIZ2PAYER = {};
+PAYERS.forEach(p=>p.cnpjs.forEach(c=>{ if(c && c.length>=8){ const r=c.slice(0,8); if(!(r in RAIZ2PAYER)) RAIZ2PAYER[r]=p.nome; } }));
 const RET={}; PAYERS.forEach(p=>{ if(p.ret) RET[p.nome]=p.ret; });
 function retOf(conv){ return RET[conv]||0; }
 function digits(s){return (s||"").replace(/\D/g,"");}
@@ -265,6 +275,7 @@ function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 function identificarPagador(cnpj, texto){
   const d = digits(cnpj);
   if(d && CNPJ2PAYER[d]) return CNPJ2PAYER[d];          // 1º: CNPJ exato (mais confiável)
+  if(d && d.length>=8 && RAIZ2PAYER[d.slice(0,8)]) return RAIZ2PAYER[d.slice(0,8)]; // 1b: mesma empresa, filial diferente
   const up = (texto||"").toUpperCase();
   // 2º: alias por PALAVRA INTEIRA (evita casar "CASSI" dentro de "RITA DE CASSIA")
   for(const p of PAYERS){ for(const a of p.aliases){
@@ -350,7 +361,7 @@ function parseNFeXML(text){
 /* =========================================================================
    PARSER DE NF — PDF (extração por texto + heurística de rótulos)
    ========================================================================= */
-async function parsePDF(arrayBuffer){
+async function parsePDF(arrayBuffer, nomeArq){
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const pdf = await pdfjsLib.getDocument({data:arrayBuffer}).promise;
   let txt='';
@@ -374,6 +385,10 @@ async function parsePDF(arrayBuffer){
             || (T.match(/(\d{2}\/\d{2}\/\d{4})\s+[àa]s\b/i)||[])[1] || '';
   // --- FALLBACK genérico (outros municípios / layouts antigos) ---
   if(!numero) numero = (T.match(/N(?:úmero|umero|º|°)\s*(?:da\s*)?(?:Nota|NFS-?e)?[^\d]{0,8}(\d{3,9})/i)||[])[1] || '';
+  // DANFSe nacional v1.0 (2026): rótulo e valor colados no texto sem espaços
+  if(!numero) numero = (Td.match(/N[úu]merodaNFS-?e(\d{3,9})Compet/i)||[])[1] || '';
+  // último recurso: número no NOME DO ARQUIVO (convenção ..._NFS_<número>.pdf)
+  if(!numero && nomeArq) numero = (nomeArq.match(/NFS[_\- ]?(\d{3,9})/i)||[])[1] || '';
   if(!dataE)  dataE  = (T.match(/Emiss[ãa]o[^\d]{0,12}(\d{2}\/\d{2}\/\d{4})/i)||[])[1] || (T.match(/(\d{2}\/\d{2}\/\d{4})/)||[])[1] || '';
   // --- LÍQUIDO: maior valor logo após o rótulo (acerta DANFSe e ISSWeb) ---
   let liquido = moneyAfter('ValorL[ií]quidodaNFS','max',46);
@@ -383,8 +398,11 @@ async function parsePDF(arrayBuffer){
   let bruto   = moneyAfter('VALORTOTALDANFS','first');
   if(bruto==null) bruto = maxMoney;
   if(liquido==null) liquido = bruto;
-  // CNPJ do tomador: 2º CNPJ formatado que não seja o da PROIMAGEM
-  const cnpjs=[...txt.matchAll(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/g)].map(m=>digits(m[1]));
+  // CNPJ do tomador: 2º CNPJ formatado que não seja o da PROIMAGEM.
+  // Busca no texto SEM espaços (Td) primeiro — DANFSe nacional parte o CNPJ em itens separados.
+  const reCNPJ=/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/g;
+  let cnpjs=[...Td.matchAll(reCNPJ)].map(m=>digits(m[1]));
+  if(!cnpjs.some(c=>c && c!=='14882395000108')) cnpjs=[...txt.matchAll(reCNPJ)].map(m=>digits(m[1]));
   let cnpj=''; for(const c of cnpjs){ if(c!=='14882395000108'){cnpj=c;break;} }
   // tomador: 2º nome entre "Empresarial" e "E-mail" (1º é o prestador PROIMAGEM)
   const noms=[...T.matchAll(/Empresarial\s+([A-ZÀ-Ú][A-ZÀ-Ú0-9 .,&'\/-]{2,55}?)\s+E-?mail/g)].map(m=>m[1].trim());
@@ -411,7 +429,7 @@ async function ingestNFFiles(files){
     try{
       let rec;
       if(/\.xml$/i.test(f.name)){ rec=parseNFeXML(await f.text()); }
-      else if(/\.pdf$/i.test(f.name)){ rec=await parsePDF(await f.arrayBuffer()); }
+      else if(/\.pdf$/i.test(f.name)){ rec=await parsePDF(await f.arrayBuffer(), f.name); }
       else continue;
       rec.id=uid(); rec.origem=f.name; rec.fonte=/\.xml$/i.test(f.name)?'XML':'PDF';
       rec.convenio = identificarPagador(rec.cnpj, rec.tomador) || '';
@@ -730,6 +748,29 @@ function conciliar(){
       grp.forEach(p=>{ const ix=semNF.indexOf(p); if(ix>=0) semNF.splice(ix,1); });
     }
   }
+  // --- EXATO TARDIO (1 pagamento): nota pendente cujo líquido/bruto/retenção bate EXATO com um pagamento
+  //     do mesmo pagador, MESMO passando de 60 dias. Tem PRIORIDADE sobre o aproximado por % abaixo —
+  //     evita dar o pagamento a uma nota de valor PARECIDO quando existe outra de valor IDÊNTICO (ex.: Álvaro 30666). ---
+  for(let pi=0; pi<semNF.length; pi++){
+    const pay=semNF[pi];
+    const C=nfs.filter(n=>!n.usada && !n.aproximado && n._conv && n._conv===pay.pagador && n._emi && daysBetween(n._emi,pay._d)>=0);
+    let exato=null;
+    for(const n of C){
+      const alvos=[n._liq,n._bru].concat(cenariosRetencao(n)).filter(v=>v!=null);
+      if(alvos.some(a=>Math.abs(pay.valor-a)<=Math.max(TOL,0.02))){
+        // entre vários exatos, prefere o de menor diferença sobre o líquido
+        const ref=(x)=>Math.abs(pay.valor-(x._liq!=null?x._liq:x._bru));
+        if(!exato || ref(n)<ref(exato)) exato=n;
+      }
+    }
+    if(exato){ const n=exato; n.aproximado=true; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
+      n.deltaPct = n._liq? +(((pay.valor-n._liq)/n._liq)*100).toFixed(2):0;
+      const dd=daysBetween(n._emi,pay._d);
+      n.status='APROXIMADO - VALIDAR';
+      n.identExtrato=(pay.tipo||'CREDIT')+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'')+' · valor EXATO'+(dd>60?(' · '+dd+'d após emissão'):'')+' · CONFERIR';
+      semNF.splice(pi,1); pi--;
+    }
+  }
   // --- APROXIMADO (1 pagamento): roda DEPOIS do parcelado. Para cada pagamento restante, acha a nota
   //     (no prazo<=60d) de MENOR diferença dentro de 8% -> aba VALIDAR (não concilia sozinho). ---
   for(let pi=0; pi<semNF.length; pi++){
@@ -889,8 +930,23 @@ function exportXLSX(){
   XLSX.utils.sheet_add_json(wsR,resumoConv,{origin:'D1'});
   XLSX.utils.book_append_sheet(wb,wsR,'Resumo');
   const hoje=new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb,`Conciliacao_PROIMAGEM_${hoje}.xlsx`);
-  document.getElementById('rel-msg').textContent='Relatório baixado ✓';
+  salvarWorkbook(wb,`Conciliacao_PROIMAGEM_${hoje}.xlsx`);
+}
+// Salva o .xlsx direto numa pasta escolhida (Chrome/Edge); se nao suportar, baixa normal.
+async function salvarWorkbook(wb,nome){
+  const msg=document.getElementById('rel-msg');
+  if(window.showSaveFilePicker){
+    try{
+      const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+      const handle=await window.showSaveFilePicker({suggestedName:nome,
+        types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
+      const w=await handle.createWritable(); await w.write(new Blob([buf])); await w.close();
+      if(msg) msg.textContent='Relatorio salvo na pasta que voce escolheu ✓';
+      return;
+    }catch(e){ if(e&&e.name==='AbortError'){ if(msg) msg.textContent='Cancelado.'; return; } }
+  }
+  XLSX.writeFile(wb,nome);
+  if(msg) msg.textContent='Relatorio baixado ✓ (na pasta Downloads)';
 }
 
 /* =========================================================================
@@ -913,6 +969,28 @@ function wireDrop(dropId,inputId,handler){
 wireDrop('drop-nf','file-nf',ingestNFFiles);
 wireDrop('drop-ofx','file-ofx',async files=>{ for(const f of files){ ingestOFX(await f.text()); } });
 wireDrop('drop-bol','file-bol',async files=>{ for(const f of files){ ingestBoleto(await f.text()); } });
+
+/* ===== PASSO 2: carregar PASTA inteira (inclui subpastas) ===== */
+function wireFolder(btnId,inputId,onFiles){
+  const b=document.getElementById(btnId), inp=document.getElementById(inputId);
+  if(!b||!inp) return;
+  b.addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',async e=>{ await onFiles(Array.from(e.target.files)); inp.value=''; });
+}
+wireFolder('btn-folder-nf','folder-nf',async all=>{
+  const arquivos=all.filter(f=>/\.(pdf|xml)$/i.test(f.name));
+  const log=document.getElementById('nf-log');
+  if(!arquivos.length){ if(log) log.textContent='Nenhum PDF/XML encontrado nessa pasta.'; return; }
+  if(log) log.textContent='Lendo '+arquivos.length+' arquivo(s) da pasta\u2026 aguarde.';
+  await ingestNFFiles(arquivos);
+});
+wireFolder('btn-folder-ofx','folder-ofx',async all=>{
+  const arquivos=all.filter(f=>/\.ofx$/i.test(f.name));
+  const msg=document.getElementById('ofx-msg');
+  if(!arquivos.length){ if(msg) msg.textContent='Nenhum .ofx encontrado nessa pasta.'; return; }
+  let n=0; for(const f of arquivos){ ingestOFX(await f.text()); n++; }
+  if(msg) msg.textContent=n+' extrato(s) .ofx carregado(s) da pasta.';
+});
 document.getElementById('btn-clear-bol').addEventListener('click',()=>{ if(confirm('Apagar os boletos carregados?')){ DB.boletos=[]; renderBoletos(); }});
 
 document.getElementById('btn-clear-nf').addEventListener('click',()=>{
