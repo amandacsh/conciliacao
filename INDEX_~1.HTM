@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conciliação Bancária — PROIMAGEM</title>
+<!-- Bibliotecas carregadas de CDN: apenas CÓDIGO da biblioteca vem da internet.
+     NENHUM arquivo seu (NF, extrato) sai do seu computador. Tudo é processado no navegador. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --azul:#1f4e79; --azul2:#2e6da4; --verde:#1e7e34; --amarelo:#b8860b;
+    --roxo:#6f42c1; --laranja:#d9730d; --cinza:#f5f7fa; --borda:#d8dee6; --vermelho:#b02a37;
+  }
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;margin:0;background:var(--cinza);color:#1d2733;}
+  header{background:var(--azul);color:#fff;padding:16px 24px;}
+  header h1{margin:0;font-size:20px;}
+  header p{margin:4px 0 0;font-size:13px;opacity:.85;}
+  .tabs{display:flex;gap:4px;background:#fff;border-bottom:2px solid var(--borda);padding:0 16px;flex-wrap:wrap;}
+  .tab{padding:12px 18px;cursor:pointer;border:none;background:none;font-size:14px;font-weight:600;color:#5a6b7b;border-bottom:3px solid transparent;}
+  .tab.active{color:var(--azul);border-bottom-color:var(--azul);}
+  .panel{display:none;padding:24px;max-width:1280px;margin:0 auto;}
+  .panel.active{display:block;}
+  .card{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:20px;margin-bottom:18px;}
+  .drop{border:2px dashed var(--azul2);border-radius:10px;padding:28px;text-align:center;color:#42586d;cursor:pointer;transition:.15s;background:#fbfdff;}
+  .drop:hover,.drop.over{background:#eef5fc;border-color:var(--azul);}
+  button.btn{background:var(--azul);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;}
+  button.btn:hover{background:var(--azul2);}
+  button.btn.sec{background:#fff;color:var(--azul);border:1.5px solid var(--azul);}
+  button.btn.danger{background:#fff;color:var(--vermelho);border:1.5px solid var(--vermelho);}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;}
+  th,td{border:1px solid var(--borda);padding:6px 8px;text-align:left;vertical-align:top;}
+  th{background:#eef2f7;position:sticky;top:0;}
+  .scroll{max-height:460px;overflow:auto;border:1px solid var(--borda);border-radius:8px;}
+  td[contenteditable]{background:#fffef5;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;color:#fff;}
+  .st-integral{background:var(--verde)} .st-glosa{background:var(--amarelo)}
+  .st-multi{background:var(--roxo)} .st-orfa{background:var(--laranja)}
+  .st-pend{background:#7a8794} .st-juros{background:#2e8b8b} .st-sem{background:var(--vermelho)}
+  .muted{color:#6b7a8a;font-size:13px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+  .stat{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:14px 18px;min-width:150px;}
+  .stat b{display:block;font-size:26px;color:var(--azul);}
+  .stat span{font-size:12px;color:#6b7a8a;text-transform:uppercase;letter-spacing:.5px;}
+  .legend{font-size:12px;color:#5a6b7b;margin:8px 0;}
+  .warn{background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:10px 14px;font-size:13px;color:#7a5b00;margin:10px 0;}
+  .ok{background:#eaf7ee;border:1px solid #9bd4ab;color:#1e5e30;}
+  input[type=file]{display:none;}
+  .small{font-size:12px;padding:6px 12px;}
+  h2{color:var(--azul);font-size:17px;margin-top:0;}
+  code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Conciliação Bancária de Notas Fiscais — PROIMAGEM</h1>
+  <p>100% no seu navegador · nenhum arquivo sai do computador · CNPJ 14.882.395/0001-08
+     <span style="display:inline-block;margin-left:10px;background:#0f3a5f;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700">versão 19/06/2026 · v1</span></p>
+</header>
+
+<div class="row" id="sessbar" style="background:#eef5fc;padding:8px 24px;border-bottom:1px solid var(--borda);font-size:13px;align-items:center;gap:10px">
+  <b style="font-size:12px">Memória:</b>
+  <button class="btn sec small" id="btn-save-sess">💾 Salvar conciliação atual</button>
+  <button class="btn sec small" id="btn-load-sess">📂 Carregar última conciliação</button>
+  <span id="sess-msg" class="muted"></span>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="nf">1 · Notas Fiscais</button>
+  <button class="tab" data-tab="ofx">2 · Extrato OFX</button>
+  <button class="tab" data-tab="conc">3 · Conciliar</button>
+  <button class="tab" data-tab="rel">4 · Relatório</button>
+</div>
+
+<!-- ===================== ABA 1: NFs ===================== -->
+<section class="panel active" id="panel-nf">
+  <div class="card">
+    <h2>Upload de Notas Fiscais (PDF e XML)</h2>
+    <p class="muted">Selecione vários PDFs/XMLs de uma vez. Cada upload <b>ACUMULA</b> — não apaga os anteriores.
+       O XML é mais preciso; do PDF extraímos por texto e você pode <b>corrigir qualquer valor</b> na tabela (células amarelas são editáveis).</p>
+    <div class="drop" id="drop-nf">
+      <div style="font-size:38px">📄➕</div>
+      <p><b>Arraste aqui</b> ou clique para escolher PDFs / XMLs das NFs</p>
+      <input type="file" id="file-nf" multiple accept=".pdf,.xml">
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn small" id="btn-folder-nf">📁 Carregar PASTA de NFs (inclui subpastas)</button>
+      <input type="file" id="folder-nf" webkitdirectory directory multiple>
+      <span id="nf-count" class="muted">0 NFs acumuladas</span>
+      <span style="flex:1"></span>
+      <button class="btn sec small" id="btn-add-nf">+ Linha manual</button>
+      <button class="btn danger small" id="btn-clear-nf">Limpar todas as NFs</button>
+    </div>
+    <p class="muted" style="margin-top:6px;font-size:12px">Dica: escolha a pasta <code>1 - TODAS</code> — ela já traz a subpasta <code>NF liquidadas</code> junto, então o motor enxerga <b>todas</b> as notas (pagas + não pagas) e não casa pagamento na NF errada.</p>
+    <div id="nf-log" class="muted" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <div class="legend">Dica: confira <b>Líquido</b> de cada NF — é o valor que o motor usa para casar com o pagamento.</div>
+    <div class="scroll">
+      <table id="tbl-nf">
+        <thead><tr>
+          <th>Origem</th><th>Nº NF</th><th>Emissão</th><th>Compet.</th><th>Tomador</th>
+          <th>CNPJ</th><th>Convênio</th><th>Bruto</th><th>Líquido</th><th>—</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ABA 2: OFX ===================== -->
+<section class="panel" id="panel-ofx">
+  <div class="card">
+    <h2>Upload do Extrato OFX (Sicredi, BB, etc.)</h2>
+    <p class="muted">Cada transação é identificada e classificada automaticamente em <b>CONCILIAR</b>, <b>IGNORAR</b> (cartão/despesa/PF) ou <b>BOLETO</b> (precisa do relatório de boletos).</p>
+    <div class="drop" id="drop-ofx">
+      <div style="font-size:38px">🏦</div>
+      <p><b>Arraste aqui</b> ou clique para escolher o arquivo .ofx</p>
+      <input type="file" id="file-ofx" multiple accept=".ofx">
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn small" id="btn-folder-ofx">📁 Carregar PASTA de extratos (.ofx)</button>
+      <input type="file" id="folder-ofx" webkitdirectory directory multiple>
+      <span id="ofx-count" class="muted">0 transações</span>
+      <span id="ofx-msg" class="muted"></span>
+      <span style="flex:1"></span>
+      <label class="muted"><input type="checkbox" id="only-conc"> mostrar só "a conciliar"</label>
+      <button class="btn danger small" id="btn-clear-ofx">Limpar extrato</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2 style="font-size:15px">Relatório de boletos do banco (CSV) — opcional</h2>
+    <p class="muted">Suba o relatório de boletos do Sicredi. O sistema cruza o <b>"Seu Número" = Nº da NF</b> e dá baixa nas NFs pagas por boleto (resolve os LIQ.COBRANÇA do extrato).</p>
+    <div class="drop" id="drop-bol">
+      <div style="font-size:30px">🧾</div>
+      <p><b>Arraste aqui</b> ou clique para escolher o CSV de boletos</p>
+      <input type="file" id="file-bol" multiple accept=".csv">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span id="bol-count" class="muted">0 boletos pagos carregados</span>
+      <span style="flex:1"></span>
+      <button class="btn danger small" id="btn-clear-bol">Limpar boletos</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="scroll">
+      <table id="tbl-ofx">
+        <thead><tr>
+          <th>Data</th><th>Tipo</th><th>Valor</th><th>Documento</th><th>Pagador (identificado)</th><th>Classificação</th><th>Descrição (memo)</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ABA 3: CONCILIAR ===================== -->
+<section class="panel" id="panel-conc">
+  <div class="card">
+    <h2>Conciliação automática</h2>
+    <p class="muted">Aplica a hierarquia do Manual, em ordem cronológica (pagamento mais antigo primeiro), respeitando contratos recorrentes.
+       Tolerância de arredondamento: R$ 0,02. Um pagamento nunca é usado em 2 NFs (exceto MULTI legítimo).</p>
+    <div class="row">
+      <button class="btn" id="btn-run">▶ Rodar conciliação</button>
+      <span id="conc-msg" class="muted"></span>
+      <div class="muted" style="width:100%;font-size:11px;margin-top:4px">✏️ Você pode editar <b>Pago, Data, Status e Identificação</b> direto na tabela abaixo — suas correções valem no relatório.</div>
+    </div>
+    <div class="legend" style="margin-top:12px">
+      <span class="pill st-integral">LIQUIDADA INTEGRAL</span>
+      <span class="pill st-juros">INTEGRAL c/ juros</span>
+      <span class="pill st-glosa">PROVÁVEL GLOSA</span>
+      <span class="pill st-multi">MÚLTIPLOS DEPÓSITOS</span>
+      <span class="pill st-pend">PENDENTE</span>
+      <span class="pill st-sem">PGTO SEM NF</span>
+    </div>
+  </div>
+  <div class="row" id="conc-stats"></div>
+  <div class="card">
+    <div class="scroll">
+      <table id="tbl-conc">
+        <thead><tr>
+          <th>Nº NF</th><th>Convênio</th><th>Emissão</th><th>Líquido</th><th>Pago</th><th>Data Pgto</th><th>Δ%</th><th>Status</th><th>Identificação no extrato</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+  <div class="card">
+    <h2 style="font-size:15px">Pagamentos sem NF — marque os que se referem a NFs fora da base</h2>
+    <p class="muted">Alguns créditos sem NF correspondente são de NFs que você não relacionou (ou que devem ser ignorados). Marque aqui — a observação vai para o relatório.</p>
+    <div class="scroll">
+      <table id="tbl-sem">
+        <thead><tr><th>Data</th><th>Valor</th><th>Pagador</th><th>Memo</th><th>Observação</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+<!-- ===================== ABA 4: RELATÓRIO ===================== -->
+<section class="panel" id="panel-rel">
+  <div class="card">
+    <h2>Relatório Excel — 4 abas</h2>
+    <p class="muted">Gera um arquivo <code>.xlsx</code> com: <b>NFs Conciliadas</b>, <b>NFs Pendentes</b>, <b>Pagamentos sem NF</b> e <b>Resumo</b>.</p>
+    <button class="btn" id="btn-xlsx">⬇ Baixar relatório (.xlsx)</button>
+    <span id="rel-msg" class="muted" style="margin-left:10px"></span>
+  </div>
+  <div class="card">
+    <h2 style="font-size:15px">Resumo</h2>
+    <div id="rel-resumo" class="muted">Rode a conciliação na aba 3 para ver o resumo.</div>
+  </div>
+</section>
+
+<script>
+/* =========================================================================
+   DICIONÁRIO DE PAGADORES (do Manual do Projeto — seção 4)
+   Cada convênio tem CNPJs e "aliases" (trechos da razão social no extrato).
+   ========================================================================= */
+const PAYERS = [
+ {nome:"AHBB", tipo:"ahbb", cnpjs:["45349461000960","45349461000374","45349461000102"], aliases:["ASSOCIACAO H B BRASIL","ASSOCIACAO B BRASIL","ASSOCIACAO HOSPITA","H B BRASIL","HOSPITALAR BENEFICENTE DO BRASIL"]},
+ {nome:"NORDEN", tipo:"convenio", cnpjs:["31097886000167"], aliases:["PERSONAL CARE OPERADORA","PERSONAL CARE"]},
+ {nome:"UNIMED", tipo:"convenio", cnpjs:["66872888000160"], aliases:["UNIMED DE MARILIA"]},
+ {nome:"CASSI", tipo:"convenio", cnpjs:["33719485000127"], aliases:["CASSI","CAIXA DE ASSISTENCIA DOS FUNCIONARI"]},
+ {nome:"APAS", tipo:"convenio", cnpjs:["57272510000135"], aliases:["ASSOCIACAO POLICIAL"]},
+ {nome:"AMAFRESP", tipo:"convenio", cnpjs:["62635990000191"], aliases:["AUDITORES FISCAIS DA RECEITA"]},
+ {nome:"MED SEVEN (LOUVEIRA)", tipo:"convenio", cnpjs:["41828343000126"], aliases:["MED SEVEN"]},
+ {nome:"DR RAFAEL-CAMINHO DE DAMASCO", tipo:"convenio", cnpjs:["48211585004374","48211585000115","48211585000549","48211585003050"], aliases:["CAMINHO DE DAMASCO"]},
+ {nome:"DR RAFAEL-DUARTINA", tipo:"convenio", cnpjs:["47717467000110","46137485000160","13650275000112"], aliases:["STA CASA DE DUARTINA","SANTA CASA MISERICORDIA DUARTIN","SANTA CASA DE MISERICORDIA DE DUARTINA","MUNICIPIO DE DUARTINA","FUNDO MUNICIPAL DE SAUDE DE DUARTINA"]},
+ {nome:"SANTA CASA DE VALINHOS", tipo:"convenio", cnpjs:["46056487000125","30187360000105"], aliases:["IRMANDADE DE SANTA CASA DE MISERICORDIA DE VAL","ADM GESTAO FINANCEIRA"]},
+ {nome:"SANTA CASA DE VINHEDO", tipo:"convenio", cnpjs:["46446696000185","30187360000105","72909179000105"], aliases:["MUNICIPIO DE VINHEDO","ADM GESTAO FINANCEIRA","IRMANDADE DA SANTA CASA DE VINHEDO","SANTA CASA DE VINHEDO"]},
+ {nome:"DR RAFAEL-HOSPITAL GALIA", tipo:"convenio", cnpjs:["02411710000130"], aliases:["IRMANDADE BENEFICENTE SAO JOSE"]},
+ {nome:"DR RAFAEL-CCRX", tipo:"convenio", cnpjs:["22895445000110"], aliases:["CENTRO CLINICO RADIOLOGICO","CENTRO CLINICO"]},
+ {nome:"PREF. GARÇA / FMS", tipo:"prefeitura", cnpjs:["97519019000180","44518371000135"], aliases:["PM GARCA FMS","MUNICIPIO DE GARCA","PREF MUNIC GARCA","PMG FUNDO SOCIAL"]},
+ {nome:"PREF. UBIRAJARA / FMS", tipo:"prefeitura", cnpjs:["11690387000171","46231882000105"], aliases:["FMS UBIRAJARA","PREF.UBIRAJARA","PREF UBIRAJARA"]},
+ {nome:"PREF. VERA CRUZ / FMS", tipo:"prefeitura", cnpjs:["13893179000103","72887078000180"], aliases:["FUNDO M DE SAUDE DO M VERA","PREF MUN VERA C","FMS VERA CRUZ"]},
+ {nome:"PREF. PIRAPOZINHO / FMS", tipo:"prefeitura", cnpjs:["21446346000198","54801121000161"], aliases:["FUNDO MUN SAUDE PIRAPOZINHO","FNS PIRAPOZ","MUNICIPIO DE PIRAPOZINHO","PREFEITURA MUNICIPAL DE PIRAPOZINHO"]},
+ {nome:"PREF. FERNÃO / FMS", tipo:"prefeitura", cnpjs:["13525194000190","01612848000134","36456541000176"], aliases:["SP 351565 FMS","DIAGNOSTICO VIDA","PREFEITURA MUNICIPAL DE FERNAO","MUNICIPIO DE FERNAO"]},
+ {nome:"PREF. ÁLVARO DE CARVALHO / FMS", tipo:"prefeitura", cnpjs:["12077518000102","44518488000119"], aliases:["FUNDO M S ALVARO CARVALHO","PREF MUN DE ALVARO CARVALHO","ALVARO DE CARVALHO"]},
+ {nome:"PREF. ALVINLÂNDIA / UMMES", tipo:"prefeitura", cnpjs:["01488169000103"], aliases:["UNIAO DOS MUNICIPIOS DA MEDIA SOROC","UMMES"]},
+ {nome:"PREF. CÂNDIDO MOTA / FMS", tipo:"prefeitura", cnpjs:["46179958000192","11788735000148"], aliases:["PMCM","FMS CT SUS CUSTEIO"]},
+ {nome:"PREF. GALIA / FMS", tipo:"prefeitura", cnpjs:["12218868000141","44518389000137"], aliases:["SP 351660 FMS","PREFEITURA MUNICIPAL DE GALIA","MUNICIPIO DE GALIA"]},
+ {nome:"SEGMAR", tipo:"empresa", cnpjs:["49296322000119"], aliases:["SEGMAR SAUDE","SEGMAR"]},
+ {nome:"PENSE ROSA - GALIA", tipo:"empresa", cnpjs:["49887854000120"], aliases:["SIND RURAL GALIA","SINDICATO RURAL DE GALIA"]},
+ {nome:"FAZENDA IGURE", tipo:"empresa", cnpjs:["60374982000103"], aliases:["IDALINA DE OLIVEIRA BAPTISTA","FAZENDA IGURE","IGURE"]},
+ {nome:"OLIVEIRA CORREA", tipo:"empresa", cnpjs:["10265740000103"], aliases:["OLIVEIRA CORREA","CONSTRUT OLIVE","CONSTRUTORA OLIVEIRA CORREA"]},
+ {nome:"MARMORARIA SIMÕES", tipo:"empresa", cnpjs:["07266622000105"], aliases:["MARMORARIA SIMOES"]},
+ {nome:"INOVESA", tipo:"empresa", cnpjs:["12819899000158"], aliases:["INOVESA"]},
+ {nome:"RB ALIMENTOS / TMK", tipo:"empresa", cnpjs:["69328912000193","57928464000180"], aliases:["RB DE GARCA","TMK SERVICOS DE APOIO"]},
+ {nome:"SÃO JOSÉ REFRIGERANTES / GARPET", tipo:"empresa", cnpjs:["57125959000170"], aliases:["GARPET","GARCA DISTRIBUIDORA"]},
+ {nome:"ASSOCIAÇÃO DO CÂNCER DE GARÇA", tipo:"empresa", cnpjs:["06078555000132"], aliases:["ASSOCIACAO DOS VOLUNTARIOS NO COMBATE AO CANCER"]},
+ {nome:"CARPELO", tipo:"empresa", cnpjs:["01614365001574"], aliases:["CARPELO"]},
+ {nome:"CONGREGAÇÃO DAS FRANCISCANAS", tipo:"empresa", cnpjs:["59997742000186"], aliases:["CONGREGACAO DAS FRANCISCANA"]},
+ {nome:"CONSTRUIR LOTEADORA", tipo:"empresa", cnpjs:["05044418000114"], aliases:["CONSTRUIR LOTEADORA"]},
+ {nome:"FAZENDA RANCHARIA", tipo:"empresa", cnpjs:["07943042"], aliases:["WHATELY","FAZENDA RANCHARIA"]},
+ {nome:"HENLAU QUÍMICA", tipo:"empresa", cnpjs:["01847902000120"], aliases:["HENLAU QUIMICA"]},
+ {nome:"LEMOR MÓVEIS", tipo:"empresa", cnpjs:["58469069000149"], aliases:["LEANDRO DONIZETE FIRMINO","LEMOR"]},
+ {nome:"MARMOARIA GARÇA / MAXXI", tipo:"empresa", cnpjs:["66921271000198"], aliases:["MAXIMINO CORREA"]},
+ {nome:"VÉRTICE", tipo:"empresa", cnpjs:["12488909000110"], aliases:["VERTICE"]},
+ {nome:"SIMMAR", tipo:"empresa", cnpjs:["51800481000150"], aliases:["SIMMAR MOVEIS","SIMMAR"]},
+];
+
+// índices para busca rápida
+const CNPJ2PAYER = {};
+PAYERS.forEach(p=>p.cnpjs.forEach(c=>CNPJ2PAYER[c]=p.nome));
+// índice por RAIZ (8 primeiros dígitos do CNPJ) -> pega filiais de um pagador conhecido
+// (ex.: INOVESA matriz /0001-58 no dicionário, mas a NF veio da filial /0005-81)
+const RAIZ2PAYER = {};
+PAYERS.forEach(p=>p.cnpjs.forEach(c=>{ if(c && c.length>=8){ const r=c.slice(0,8); if(!(r in RAIZ2PAYER)) RAIZ2PAYER[r]=p.nome; } }));
+const RET={}; PAYERS.forEach(p=>{ if(p.ret) RET[p.nome]=p.ret; });
+function retOf(conv){ return RET[conv]||0; }
+function digits(s){return (s||"").replace(/\D/g,"");}
+function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function identificarPagador(cnpj, texto){
+  const d = digits(cnpj);
+  if(d && CNPJ2PAYER[d]) return CNPJ2PAYER[d];          // 1º: CNPJ exato (mais confiável)
+  if(d && d.length>=8 && RAIZ2PAYER[d.slice(0,8)]) return RAIZ2PAYER[d.slice(0,8)]; // 1b: mesma empresa, filial diferente
+  const up = (texto||"").toUpperCase();
+  // 2º: alias por PALAVRA INTEIRA (evita casar "CASSI" dentro de "RITA DE CASSIA")
+  for(const p of PAYERS){ for(const a of p.aliases){
+    const re=new RegExp('(^|[^A-Z0-9])'+escRe(a)+'([^A-Z0-9]|$)');
+    if(re.test(up)) return p.nome;
+  } }
+  return null;
+}
+
+/* =========================================================================
+   ARMAZENAMENTO (acumula entre uploads, persiste no navegador)
+   ========================================================================= */
+// Sempre abrir VAZIO: descarta NFs/extrato salvos de aberturas anteriores.
+// (Dentro da MESMA sessão os uploads continuam acumulando normalmente.)
+try{ localStorage.removeItem('pi_nfs'); localStorage.removeItem('pi_txs'); }catch(e){}
+const DB = { nfs: [], txs: [], boletos: [], conc: null };
+function saveNFs(){localStorage.setItem('pi_nfs',JSON.stringify(DB.nfs));}
+function saveTXs(){localStorage.setItem('pi_txs',JSON.stringify(DB.txs));}
+function _snap(){ return JSON.stringify({nfs:DB.nfs,txs:DB.txs,boletos:DB.boletos,conc:DB.conc,ts:Date.now()}); }
+function salvarSessao(){ try{
+  if(!DB.nfs.length && !DB.txs.length){ document.getElementById('sess-msg').textContent='Nada para salvar ainda — carregue NFs/extrato primeiro.'; return; }
+  localStorage.setItem('pi_sessao',_snap());
+  document.getElementById('sess-msg').textContent='✅ Salvo em '+new Date().toLocaleString('pt-BR')+' ('+DB.nfs.length+' NFs, '+DB.txs.length+' lançamentos)';
+}catch(e){ document.getElementById('sess-msg').textContent='Erro ao salvar (memória cheia?): '+e.message; } }
+function carregarSessao(){ try{
+  const raw=localStorage.getItem('pi_sessao');
+  if(!raw){ document.getElementById('sess-msg').textContent='Nenhuma conciliação salva ainda. Rode uma e clique em Salvar.'; return; }
+  const d=JSON.parse(raw);
+  DB.nfs=d.nfs||[]; DB.txs=d.txs||[]; DB.boletos=d.boletos||[]; DB.conc=d.conc||null;
+  renderNFs(); renderOFX(); renderBoletos(); if(DB.conc) renderConc();
+  document.getElementById('sess-msg').textContent='📂 Carregada a conciliação de '+new Date(d.ts).toLocaleString('pt-BR')+' ('+DB.nfs.length+' NFs)';
+}catch(e){ document.getElementById('sess-msg').textContent='Erro ao carregar: '+e.message; } }
+
+/* =========================================================================
+   UTILITÁRIOS
+   ========================================================================= */
+function num(v){ if(v==null) return null; let s=String(v).trim().replace(/\s/g,'');
+  // trata "1.234,56" e "1234.56"
+  if(/,\d{1,2}$/.test(s)){ s=s.replace(/\./g,'').replace(',','.'); } else { s=s.replace(/,/g,''); }
+  const n=parseFloat(s); return isNaN(n)?null:n; }
+function fmt(n){ return n==null?'':n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function parseDateBR(s){ // dd/mm/aaaa -> Date
+  if(!s) return null; const m=String(s).match(/(\d{2})\/(\d{2})\/(\d{4})/); if(!m) return null;
+  return new Date(+m[3],+m[2]-1,+m[1]); }
+function parseOFXDate(s){ const m=String(s).match(/(\d{4})(\d{2})(\d{2})/); if(!m) return null;
+  return new Date(+m[1],+m[2]-1,+m[3]); }
+function dBR(dt){ return dt?('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear():''; }
+function daysBetween(a,b){ return Math.round((b-a)/86400000); }
+const uid=()=>Math.random().toString(36).slice(2,9);
+
+/* =========================================================================
+   PARSER DE NF — XML (NFS-e ABRASF e variações municipais)
+   ========================================================================= */
+function tagVal(xml, names){
+  for(const n of names){
+    const re = new RegExp('<([\\w]+:)?'+n+'>\\s*([^<]+?)\\s*</','i');
+    const m = xml.match(re); if(m && m[2].trim()) return m[2].trim();
+  } return null;
+}
+function parseNFeXML(text){
+  // tomador: pega bloco Tomador se existir
+  const tm = text.match(/<([\w]+:)?Tomador[^>]*>([\s\S]*?)<\/([\w]+:)?Tomador/i);
+  const tomadorBloco = tm? tm[0] : text;
+  const numero = tagVal(text,['Numero','NumeroNfse','nfeNumero','numNf']);
+  const dataEmi = tagVal(text,['DataEmissao','dhEmi','DataEmissaoRps','dEmi']);
+  const compet  = tagVal(text,['Competencia','dCompet']);
+  const bruto   = num(tagVal(text,['ValorServicos','ValorServico','vServ','ValorTotal','vNF']));
+  let liquido   = num(tagVal(text,['ValorLiquidoNfse','ValorLiquido','vLiq','ValorLiquidoNFSe']));
+  const tomNome = tagVal(tomadorBloco,['RazaoSocial','xNome','NomeTomador','Nome']);
+  const tomCnpj = digits(tagVal(tomadorBloco,['Cnpj','CNPJ','CnpjCpf']));
+  // se não veio líquido, calcula bruto - retenções
+  if(liquido==null && bruto!=null){
+    const ret = ['ValorIss','ValorPis','ValorCofins','ValorCsll','ValorIr','ValorInss','vISS','vPIS','vCOFINS','vCSLL','vIR']
+      .reduce((s,t)=>{const v=num(tagVal(text,[t]));return s+(v||0);},0);
+    liquido = +(bruto - ret).toFixed(2);
+  }
+  let dataFmt=''; if(dataEmi){ const iso=dataEmi.match(/(\d{4})-(\d{2})-(\d{2})/);
+    dataFmt = iso? `${iso[3]}/${iso[2]}/${iso[1]}` : dataEmi; }
+  let compFmt=''; if(compet){ const iso=compet.match(/(\d{4})-(\d{2})/); compFmt = iso?`${iso[2]}/${iso[1]}`:compet; }
+  return {numero,dataEmissao:dataFmt,competencia:compFmt||dataFmt,bruto,liquido,tomador:tomNome,cnpj:tomCnpj};
+}
+
+/* =========================================================================
+   PARSER DE NF — PDF (extração por texto + heurística de rótulos)
+   ========================================================================= */
+async function parsePDF(arrayBuffer, nomeArq){
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+  let txt='';
+  for(let i=1;i<=pdf.numPages;i++){ const pg=await pdf.getPage(i); const c=await pg.getTextContent();
+    txt += c.items.map(it=>it.str).join(' ')+'\n'; }
+  const T = txt.replace(/ /g,' ');
+  const Td = txt.replace(/\s+/g,'');   // texto sem espaços (valores costumam vir colados ao rótulo)
+  const moneyAll=[...Td.matchAll(/R\$\s*([\d.]+,\d{2})/g)].map(m=>num(m[1])).filter(v=>v!=null);
+  const maxMoney = moneyAll.length?Math.max(...moneyAll):null;   // o bruto é quase sempre o maior valor R$
+  const moneyAfter=(anchor,which,win)=>{ const i=Td.search(new RegExp(anchor,'i')); if(i<0) return null;
+    const seg=Td.slice(i,i+(win||160)); const ms=[...seg.matchAll(/R\$\s*([\d.]+,\d{2})/g)].map(m=>num(m[1]));
+    if(!ms.length) return null;
+    if(which==='max') return Math.max(...ms);
+    return which==='last'?ms[ms.length-1]:ms[0]; };
+  // --- NÚMERO: DANFSe nacional / linha de recibo (ISSWeb Marília) / fallback ---
+  let numero = (T.match(/N[úu]mero\s+da\s+NFS-?e\s+(\d{1,9})\s+Compet/i)||[])[1]   // DANFSe: número vem antes de "Competência" (aceita 1-9 díg, ex.: NF 53)
+            || (T.match(/N[úu]mero\s+da\s+NFS-?e\s+(\d{3,9})/i)||[])[1]              // ISSWeb/outros: >=3 díg, evita pegar código de verificação
+            || (T.match(/NFS-?e\s+DE\s+N[ÚU]MERO\s+(\d{3,9})/i)||[])[1] || '';
+  let compet = (T.match(/Compet[êe]ncia\s+da\s+NFS-?e\s+(\d{2}\/\d{2}\/\d{4})/i)||[])[1] || '';
+  let dataE  = (T.match(/emiss[ãa]o\s+da\s+NFS-?e\s+(\d{2}\/\d{2}\/\d{4})/i)||[])[1]
+            || (T.match(/(\d{2}\/\d{2}\/\d{4})\s+[àa]s\b/i)||[])[1] || '';
+  // --- FALLBACK genérico (outros municípios / layouts antigos) ---
+  if(!numero) numero = (T.match(/N(?:úmero|umero|º|°)\s*(?:da\s*)?(?:Nota|NFS-?e)?[^\d]{0,8}(\d{3,9})/i)||[])[1] || '';
+  // DANFSe nacional v1.0 (2026): rótulo e valor colados no texto sem espaços
+  if(!numero) numero = (Td.match(/N[úu]merodaNFS-?e(\d{3,9})Compet/i)||[])[1] || '';
+  // último recurso: número no NOME DO ARQUIVO (convenção ..._NFS_<número>.pdf)
+  if(!numero && nomeArq) numero = (nomeArq.match(/NFS[_\- ]?(\d{3,9})/i)||[])[1] || '';
+  if(!dataE)  dataE  = (T.match(/Emiss[ãa]o[^\d]{0,12}(\d{2}\/\d{2}\/\d{4})/i)||[])[1] || (T.match(/(\d{2}\/\d{2}\/\d{4})/)||[])[1] || '';
+  // --- LÍQUIDO: maior valor logo após o rótulo (acerta DANFSe e ISSWeb) ---
+  let liquido = moneyAfter('ValorL[ií]quidodaNFS','max',46);
+  if(liquido==null) liquido = moneyAfter('LIQUIDODANFAP','first',40);   // "VALOR LIQUIDO DA NF APÓS AS RETENÇÕES"
+  if(liquido==null){ const m=T.match(/Valor\s*L[ií]quido[^R]*R\$\s*([\d.]+,\d{2})/i); liquido = m?num(m[1]):null; }
+  // --- BRUTO: âncora DANFSe, senão o maior valor R$ do documento ---
+  let bruto   = moneyAfter('VALORTOTALDANFS','first');
+  if(bruto==null) bruto = maxMoney;
+  if(liquido==null) liquido = bruto;
+  // CNPJ do tomador: 2º CNPJ formatado que não seja o da PROIMAGEM.
+  // Busca no texto SEM espaços (Td) primeiro — DANFSe nacional parte o CNPJ em itens separados.
+  const reCNPJ=/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/g;
+  let cnpjs=[...Td.matchAll(reCNPJ)].map(m=>digits(m[1]));
+  if(!cnpjs.some(c=>c && c!=='14882395000108')) cnpjs=[...txt.matchAll(reCNPJ)].map(m=>digits(m[1]));
+  let cnpj=''; for(const c of cnpjs){ if(c!=='14882395000108'){cnpj=c;break;} }
+  // tomador: 2º nome entre "Empresarial" e "E-mail" (1º é o prestador PROIMAGEM)
+  const noms=[...T.matchAll(/Empresarial\s+([A-ZÀ-Ú][A-ZÀ-Ú0-9 .,&'\/-]{2,55}?)\s+E-?mail/g)].map(m=>m[1].trim());
+  let tomador = noms[1] || '';
+  if(!tomador){ const m=T.match(/Nome\/Raz[ãa]o Social\s+([A-ZÀ-Ú][A-ZÀ-Ú ]{5,55}?)\s{2,}/); if(m) tomador=m[1].trim(); }
+  if(!tomador){ const tm=T.match(/Tomador[^A-ZÀ-Ú]{0,30}([A-ZÀ-Ú][A-ZÀ-Ú \.\-&]{6,60})/); if(tm) tomador=tm[1].trim(); }
+  // DANFSe 2026: nome do tomador vem na seção "TOMADOR DO SERVIÇO"
+  { const ti=T.search(/TOMADOR DO SERVI/i);
+    if(ti>=0 && (!tomador || /PROIMAGEM/i.test(tomador))){ const seg=T.slice(ti,ti+600);
+      const m=seg.match(/E-?mail\s+([A-ZÀ-Ú][A-ZÀ-Ú0-9 .,&'\/-]{4,60}?)\s+(?:-|\d|Endere|Munic)/i);
+      if(m && !/PROIMAGEM/i.test(m[1])) tomador=m[1].trim(); } }
+  // SALVAGUARDA: a PROIMAGEM é a EMITENTE, nunca o tomador/pagador
+  if(/PROIMAGEM/i.test(tomador)) tomador='';
+  if(cnpj==='14882395000108') cnpj='';
+  return {numero,dataEmissao:dataE,competencia:compet||dataE,bruto,liquido,tomador,cnpj,_pdfText:true};
+}
+
+/* =========================================================================
+   INGESTÃO DE NFs
+   ========================================================================= */
+async function ingestNFFiles(files){
+  const log=document.getElementById('nf-log'); let ok=0,fail=0;
+  for(const f of files){
+    try{
+      let rec;
+      if(/\.xml$/i.test(f.name)){ rec=parseNFeXML(await f.text()); }
+      else if(/\.pdf$/i.test(f.name)){ rec=await parsePDF(await f.arrayBuffer(), f.name); }
+      else continue;
+      rec.id=uid(); rec.origem=f.name; rec.fonte=/\.xml$/i.test(f.name)?'XML':'PDF';
+      rec.convenio = identificarPagador(rec.cnpj, rec.tomador) || '';
+      // evita duplicar mesma NF (mesmo número + cnpj)
+      const dup = DB.nfs.find(n=>n.numero&&n.numero===rec.numero&&digits(n.cnpj)===digits(rec.cnpj));
+      if(dup){ fail++; continue; }
+      DB.nfs.push(rec); ok++;
+    }catch(e){ console.error(e); fail++; }
+  }
+  saveNFs(); renderNFs();
+  log.innerHTML = `✓ ${ok} NF(s) adicionada(s)` + (fail?` · ${fail} ignorada(s) (duplicada ou ilegível — corrija manualmente se preciso)`:'');
+}
+
+function renderNFs(){
+  const tb=document.querySelector('#tbl-nf tbody'); tb.innerHTML='';
+  DB.nfs.forEach(n=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td title="${n.origem||''}">${n.fonte||''}</td>
+      <td contenteditable data-f="numero">${n.numero||''}</td>
+      <td contenteditable data-f="dataEmissao">${n.dataEmissao||''}</td>
+      <td contenteditable data-f="competencia">${n.competencia||''}</td>
+      <td contenteditable data-f="tomador">${n.tomador||''}</td>
+      <td contenteditable data-f="cnpj">${n.cnpj||''}</td>
+      <td>${n.convenio||'<span style="color:#b02a37">? defina</span>'}</td>
+      <td contenteditable data-f="bruto" style="text-align:right">${n.bruto!=null?fmt(n.bruto):''}</td>
+      <td contenteditable data-f="liquido" style="text-align:right">${n.liquido!=null?fmt(n.liquido):''}</td>
+      <td><button class="btn danger small" data-del="${n.id}">x</button></td>`;
+    tr.querySelectorAll('[contenteditable]').forEach(td=>{
+      td.addEventListener('blur',()=>{ const f=td.dataset.f; let v=td.textContent.trim();
+        if(f==='bruto'||f==='liquido') v=num(v); n[f]=v;
+        if(f==='cnpj'||f==='tomador'){ n.convenio=identificarPagador(n.cnpj,n.tomador)||n.convenio; renderNFs(); }
+        saveNFs(); });
+    });
+    tr.querySelector('[data-del]').addEventListener('click',()=>{ DB.nfs=DB.nfs.filter(x=>x.id!==n.id); saveNFs(); renderNFs(); });
+    tb.appendChild(tr);
+  });
+  document.getElementById('nf-count').textContent=`${DB.nfs.length} NFs acumuladas`;
+}
+
+/* =========================================================================
+   PARSER + CLASSIFICADOR DE OFX
+   ========================================================================= */
+function parseOFX(text){
+  const txs=[];
+  const blocks = text.split(/<STMTTRN>/i).slice(1);
+  for(const b of blocks){
+    const g=(tag)=>{ const m=b.match(new RegExp('<'+tag+'>\\s*([^<\\r\\n]*)','i')); return m?m[1].trim():''; };
+    const tipo=g('TRNTYPE'), dt=g('DTPOSTED'), amt=num(g('TRNAMT')), fitid=g('FITID'), memo=g('MEMO');
+    if(!dt && !memo) continue;
+    txs.push({id:uid(), tipo, data:parseOFXDate(dt), valor:amt, fitid, memo:memo.replace(/\s+/g,' ').trim()});
+  }
+  return txs;
+}
+function classificarTx(tx){
+  if(tx.manual){ tx.classe='IGNORAR'; tx.motivo='ignorado manualmente'; return; }
+  const m=(tx.memo||'').toUpperCase();
+  const v=tx.valor||0;
+  // documento (CNPJ 14 / CPF 11) no memo
+  const dd=[...(tx.memo||'').matchAll(/\b(\d{11}|\d{14})\b/g)].map(x=>x[1]);
+  // prioriza CNPJ
+  const doc = dd.find(x=>x.length===14) || dd.find(x=>x.length===11) || '';
+  tx.doc=doc;
+  // despesas / saídas
+  if(v<=0){ tx.classe='IGNORAR'; tx.motivo='Débito/saída'; return; }
+  if(m.includes('CIELO')){ tx.classe='IGNORAR'; tx.motivo='Cartão (receita avulsa)'; return; }
+  if(/TARIFA|IOF|JUROS|RENDE FACIL|RENDE F|APLICAC|RESGATE|ESTORNO/.test(m)){ tx.classe='IGNORAR'; tx.motivo='Tarifa/aplicação'; return; }
+  if(/LIQ\.?\s*COBRANCA|LIQUIDACAO COBRANCA/.test(m)){ tx.classe='BOLETO'; tx.motivo='Boleto — precisa relatório de boletos'; return; }
+  if(/LIQUIDACAO BOLETO|PIX_DEB|DEBITO CONVENIOS|DEB\.CTA|DEBITO ARRECAD|DEBITO TED|PAGAMENTO PIX SICREDI/.test(m)){
+    tx.classe='IGNORAR'; tx.motivo='Despesa/saída'; return;
+  }
+  // candidato a recebível: identifica pagador
+  const pag = identificarPagador(doc, tx.memo);
+  if(pag && PAGADORES_IGNORAR.includes(pag)){ tx.classe='IGNORAR'; tx.motivo='Pagador fora das conferências ('+pag+')'; return; }
+  if(pag==='AHBB' && v>20000){ tx.classe='IGNORAR'; tx.motivo='AHBB acima de R$ 20.000 (notas fora da base)'; return; }
+  if(pag){ tx.classe='CONCILIAR'; tx.pagador=pag; tx.motivo='Pagador identificado'; return; }
+  if(doc && doc.length===14){ tx.classe='A IDENTIFICAR'; tx.motivo='CNPJ não mapeado'; return; }
+  // CPF de pessoa física e sem mapeamento
+  tx.classe='IGNORAR'; tx.motivo='PIX de paciente (PF)';
+}
+function ingestOFX(text){
+  const novas=parseOFX(text);
+  novas.forEach(classificarTx);
+  // evita duplicar: por FITID; sem FITID, por data+valor+memo (impede reuso ao subir o MESMO extrato)
+  const _key=x=>x.fitid?('F:'+x.fitid):('M:'+String(x.data)+'|'+x.valor+'|'+((x.memo||'').replace(/\s+/g,' ').trim()));
+  const _vistos=new Set(DB.txs.map(_key)); let _dup=0;
+  for(const t of novas){ const k=_key(t); if(_vistos.has(k)){ _dup++; continue; } _vistos.add(k); DB.txs.push(t); }
+  if(_dup>0){ const el=document.getElementById('ofx-msg'); if(el) el.textContent=_dup+' lançamento(s) repetido(s) ignorado(s) (já estavam no extrato).'; }
+  saveTXs(); renderOFX();
+}
+function renderOFX(){
+  const tb=document.querySelector('#tbl-ofx tbody'); tb.innerHTML='';
+  const only=document.getElementById('only-conc').checked;
+  let shown=0;
+  DB.txs.slice().sort((a,b)=>new Date(a.data)-new Date(b.data)).forEach(t=>{
+    if(only && t.classe!=='CONCILIAR') return;
+    shown++;
+    const cls = t.classe==='CONCILIAR'?'st-integral':t.classe==='BOLETO'?'st-multi':t.classe==='A IDENTIFICAR'?'st-orfa':'st-pend';
+    const tr=document.createElement('tr');
+    const podeIgnorar = (t.classe==='CONCILIAR'||t.classe==='A IDENTIFICAR'||t.manual);
+    tr.innerHTML=`<td>${dBR(new Date(t.data))}</td><td>${t.tipo||''}</td>
+      <td style="text-align:right">${fmt(t.valor)}</td><td>${t.doc||''}</td>
+      <td>${t.pagador||''}</td>
+      <td><span class="pill ${cls}">${t.classe}</span><div class="muted" style="font-size:10px">${t.motivo||''}</div>`+
+      (podeIgnorar?`<label style="font-size:10px;display:block;margin-top:3px;color:#b02a37"><input type="checkbox" class="ig" ${t.manual?'checked':''}> ignorar este pgto</label>`:'')+`</td>
+      <td style="font-size:11px">${t.memo||''}</td>`;
+    const chk=tr.querySelector('.ig');
+    if(chk) chk.addEventListener('change',()=>{
+      if(chk.checked){ t.classe='IGNORAR'; t.motivo='ignorado manualmente'; t.manual=true; }
+      else { t.manual=false; classificarTx(t); }
+      saveTXs(); renderOFX();
+    });
+    tb.appendChild(tr);
+  });
+  const nConc=DB.txs.filter(t=>t.classe==='CONCILIAR').length;
+  document.getElementById('ofx-count').textContent=`${DB.txs.length} transações · ${nConc} a conciliar · mostrando ${shown}`;
+}
+
+/* =========================================================================
+   RELATÓRIO DE BOLETOS DO BANCO (CSV) — baixa por "Seu Número" = Nº da NF
+   ========================================================================= */
+function parseBoletoCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim().length);
+  const out=[];
+  for(let i=1;i<lines.length;i++){
+    const c=lines[i].split(';'); if(c.length<8) continue;
+    const dataPgto=(c[2]||'').trim();
+    if(!/^\d{2}\/\d{2}\/\d{4}$/.test(dataPgto)) continue;   // só boletos PAGOS (têm Data Pagamento)
+    out.push({pagador:(c[0]||'').trim(), dataPgto, nosso:(c[4]||'').trim(),
+      seu:(c[5]||'').replace(/\D/g,''), valor:num((c[6]||'').replace(/[R$\s]/g,'')),
+      cnpj:digits(c[7]), convenio:identificarPagador(digits(c[7]),(c[0]||''))||''});
+  }
+  return out;
+}
+function ingestBoleto(text){
+  const novos=parseBoletoCSV(text);
+  for(const b of novos){ if(!DB.boletos.find(x=>x.nosso===b.nosso && x.seu===b.seu)) DB.boletos.push(b); }
+  renderBoletos();
+}
+function renderBoletos(){
+  const el=document.getElementById('bol-count');
+  if(el) el.textContent=DB.boletos.length+' boletos pagos carregados (baixam pela coluna "Seu Número" = Nº da NF)';
+}
+
+/* =========================================================================
+   MOTOR DE CONCILIAÇÃO (hierarquia do Manual)
+   ========================================================================= */
+const TOL=0.02;
+/* === CONFIG DE EXCEÇÕES (sobrevive a re-runs) === */
+const PAGADORES_IGNORAR = ['CONGREGAÇÃO DAS FRANCISCANAS'];           // NFs fora das conferências
+// AHBB > R$ 20.000 é excluída por regra (em classificarTx), não por lista fixa.
+const BAIXA_MANUAL = {'32810':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'},'32811':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'},'32812':{pago:4000,obs:'baixa 2x dep\u00f3sito R$ 8.000 (Pense Rosa)'}};
+function conciliar(){
+  // prepara NFs
+  const nfs = DB.nfs.filter(n=>!PAGADORES_IGNORAR.includes(n.convenio||identificarPagador(n.cnpj,n.tomador)||'')).map(n=>({...n,
+     _emi:parseDateBR(n.dataEmissao), _liq:num(n.liquido), _bru:num(n.bruto),
+     _conv:n.convenio||identificarPagador(n.cnpj,n.tomador)||'', usada:false,
+     status:'PENDENTE', pago:null, dataPgto:null, identExtrato:'', deltaPct:null}));
+  // --- BAIXA POR BOLETO: cruza o "Seu Número" do relatório de boletos com o Nº da NF ---
+  (DB.boletos||[]).forEach(b=>{
+    if(!b.seu) return;
+    const nf=nfs.find(n=>!n.usada && n.numero && String(n.numero)===String(b.seu));
+    if(nf){
+      nf.usada=true; nf.status='LIQUIDADA INTEGRAL'; nf.pago=(b.valor!=null?b.valor:nf._liq); nf.dataPgto=b.dataPgto;
+      nf.deltaPct=(nf._liq && b.valor!=null)? +(((b.valor-nf._liq)/nf._liq)*100).toFixed(2) : 0;
+      nf.identExtrato='BOLETO Nosso Nº '+b.nosso+' · pago '+b.dataPgto+' · R$ '+fmt(b.valor);
+    }
+  });
+  // --- BAIXA MANUAL: pagamentos sem identificação no banco (ex.: Pense Rosa 2x R$ 8.000) ---
+  for(const nf of nfs){ const b=BAIXA_MANUAL[String(nf.numero)]; if(b && !nf.usada){ nf.usada=true; nf.status='LIQUIDADA - baixa manual'; nf.pago=b.pago; nf.dataPgto=b.data||''; nf.deltaPct=0; nf.identExtrato=b.obs; } }
+  // pagamentos a conciliar, ordenados cronologicamente (mais antigo primeiro)
+  const pays = DB.txs.filter(t=>t.classe==='CONCILIAR')
+     .map(t=>({...t, _d:new Date(t.data), usado:false}))
+     .sort((a,b)=>a._d-b._d);
+
+  const semNF=[];
+  // tipo do pagador e janela máxima (dias após a emissão)
+  function tipoOf(conv){ const p=PAYERS.find(x=>x.nome===conv); return p?p.tipo:'convenio'; }
+  function janelaMax(conv){ const t=tipoOf(conv); return t==='ahbb'?20 : t==='prefeitura'?30 : t==='empresa'?30 : 45; }
+  // REGRA DE OURO: pagamento NUNCA antes da emissão. Depois, aceita (atraso é marcado, não bloqueia).
+  const MAX_PRAZO=60; // teto: além disso não concilia (evita casamento por coincidência de valor)
+  function janelaOK(nf,pay){ if(!nf._emi) return true; const dd=daysBetween(nf._emi,pay._d); return dd>=0 && dd<=MAX_PRAZO; }
+  function atraso(nf,pay){ return nf._emi && daysBetween(nf._emi,pay._d) > janelaMax(nf._conv); }
+  // cenários de retenção possíveis (alvos além de líquido/bruto), respeitando piso de R$ 10 por componente
+  function cenariosRetencao(n){
+    const b=n._bru; if(!b) return [];
+    const r2=(x)=>+x.toFixed(2);
+    const comp=(ir)=>({ir: b*ir>=10? b*ir:0, cs: b*0.0465>=10? b*0.0465:0});
+    if(tipoOf(n._conv)==='prefeitura'){ const c=comp(0.012);
+      // municípios retêm 1,2% FLAT (sem piso R$10, sem CSRF) -> bruto×0,988 é o caso dominante
+      return [r2(b*0.988), r2(b*0.952), r2(b-c.ir-c.cs), r2(b-c.ir), r2(b)]; }  // +4,8% (IRRF+ISS, ex.: Ubirajara)
+    const c=comp(0.015);
+    // empresas/convênios: 6,15% flat, 4,65% flat, e versões com piso
+    return [r2(b*0.9385), r2(b*0.9535), r2(b-c.ir-c.cs), r2(b-c.cs)];
+  }
+  // candidatas do mesmo pagador ainda não usadas, ordenadas por emissão (cronológico)
+  const cand=(pay)=>nfs.filter(n=>!n.usada && !n.aproximado && n._conv && n._conv===pay.pagador)
+                       .sort((a,b)=>(a._emi||0)-(b._emi||0));
+
+  function assign(n,pay,status,grupo){
+    n.usada=true; n.dataPgto=dBR(pay._d); n.status = atraso(n,pay) ? status+' \u00b7 PAGO EM ATRASO' : status;
+    if(grupo){ // MULTI: cada NF recebe seu próprio líquido (rateio), Δ%=0 e a nota mostra o TED total
+      n.pago = n._liq; n.deltaPct = 0;
+    } else {
+      n.pago = pay.valor;
+      n.deltaPct = n._liq ? +(((pay.valor-n._liq)/n._liq)*100).toFixed(2) : null;
+    }
+    const tag = pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'');
+    n.identExtrato = grupo? ('[MULTI cobre '+grupo.map(x=>x.numero).join('+')+' · TED total R$ '+fmt(pay.valor)+'] '+tag) : tag;
+  }
+  function bothBefore(arr,pay){ return arr.every(n=>!n._emi || daysBetween(n._emi,pay._d)>=0); }
+  // valores líquidos candidatos de uma NF (líquido, bruto e cenários de retenção)
+  function valsOf(n){
+    const set=new Set();
+    if(n._liq!=null) set.add(+(+n._liq).toFixed(2));
+    if(n._bru!=null) set.add(+(+n._bru).toFixed(2));
+    cenariosRetencao(n).forEach(v=>{ if(v!=null) set.add(v); });
+    return [...set];
+  }
+  // MULTI: 1 pagamento cobre 2-4 NFs; cada NF contribui com QUALQUER um dos seus valores candidatos
+  // (testa retenção por NF, não só o líquido cru). 4 NFs só em último caso.
+  function findMulti(C,pay){
+    const E=C.filter(n=>bothBefore([n],pay));
+    for(let k=2;k<=4;k++){
+      let out=null;
+      (function rec(start,chosen,sum){
+        if(out) return;
+        if(chosen.length===k){ if(Math.abs(sum-pay.valor)<=Math.max(TOL,0.05)) out=chosen.slice(); return; }
+        for(let i=start;i<E.length;i++){
+          for(const v of valsOf(E[i])){
+            chosen.push(E[i]); rec(i+1,chosen,sum+v); chosen.pop();
+            if(out) return;
+          }
+        }
+      })(0,[],0);
+      if(out) return out;
+    }
+    return null;
+  }
+
+  for(const pay of pays){
+    const C=cand(pay); let done=false;
+    // T1 EXATO LÍQUIDO
+    for(const n of C){ if(n._liq!=null && Math.abs(pay.valor-n._liq)<=TOL && janelaOK(n,pay)){
+      assign(n,pay,'LIQUIDADA INTEGRAL'); done=true; break; } }
+    if(done) continue;
+    // T2 EXATO BRUTO
+    for(const n of C){ if(n._bru!=null && Math.abs(pay.valor-n._bru)<=TOL && janelaOK(n,pay)){
+      assign(n,pay,'LIQUIDADA INTEGRAL'); done=true; break; } }
+    if(done) continue;
+    // T2.5 RETENÇÃO por tipo: pago == bruto - retenção (testa 1,2% / 5,85% / 6,15% com piso R$10)
+    for(const n of C){ if(n._bru!=null && janelaOK(n,pay)){
+      if(cenariosRetencao(n).some(a=>Math.abs(pay.valor-a)<=Math.max(TOL,0.05))){
+        assign(n,pay,'LIQUIDADA INTEGRAL'); done=true; break; } } }
+    if(done) continue;
+    // T3 MULTI (2 ou 3 NFs, soma dos líquidos)
+    const multi=findMulti(C,pay); if(multi){ multi.forEach(n=>assign(n,pay,'MÚLTIPLOS DEPÓSITOS',multi)); continue; }
+    // (APROXIMADO de 1 pagamento foi movido para DEPOIS do parcelado exato, mais abaixo)
+    // sem match exato -> vai para o pool, parcelado/aproximado tratam depois
+    semNF.push(pay);
+  }
+
+  // --- PARCELADO: 1 NF paga por VÁRIOS pagamentos (2 a 5) do mesmo convênio.
+  //     soma testada contra líquido, bruto e bruto×(1-retenção do pagador) ---
+  for(const nf of nfs){
+    if(nf.usada || !nf._conv) continue;
+    const ret=retOf(nf._conv);
+    const targets=[];
+    if(nf._liq) targets.push([nf._liq,'liq']);
+    if(nf._bru){ if(ret>0) targets.push([+(nf._bru*(1-ret)).toFixed(2),'ret']); targets.push([nf._bru,'bru']); }
+    if(!targets.length) continue;
+    const ps=semNF.filter(p=>p.pagador===nf._conv && (!nf._emi || daysBetween(nf._emi,p._d)>=0)).sort((a,b)=>a._d-b._d);
+    const MAXP=Math.min(5,ps.length);
+    let grp=null, tl=null;
+    (function search(start,chosen,sum){
+      if(grp) return;
+      if(chosen.length>=2){ for(const t of targets){ if(Math.abs(sum-t[0])<=0.05){ grp=chosen.slice(); tl=t[1]; return; } } }
+      if(chosen.length>=MAXP) return;
+      for(let i=start;i<ps.length;i++){ chosen.push(ps[i]); search(i+1,chosen,sum+ps[i].valor); chosen.pop(); if(grp) return; }
+    })(0,[],0);
+    if(grp){
+      nf.usada=true;
+      nf.pago=+grp.reduce((s,p)=>s+p.valor,0).toFixed(2);
+      nf.deltaPct = nf._liq ? +(((nf.pago-nf._liq)/nf._liq)*100).toFixed(2) : 0;
+      const pct=(ret*100).toFixed(2).replace(/\.?0+$/,'').replace('.',',');
+      nf.status = tl==='liq' ? 'LIQUIDADA INTEGRAL' : (tl==='ret' ? 'LIQUIDADA - retenção '+pct+'% s/ bruto' : 'LIQUIDADA - sem retenção');
+      nf.dataPgto=dBR(grp[grp.length-1]._d);
+      nf.identExtrato='PARCELADO ('+grp.length+'x): '+grp.map(p=>dBR(p._d)+' R$ '+fmt(p.valor)).join(' + ');
+      grp.forEach(p=>{ const ix=semNF.indexOf(p); if(ix>=0) semNF.splice(ix,1); });
+    }
+  }
+  // --- PARCELADO APROXIMADO: nota pendente cujo conjunto de 2-4 pagamentos do mesmo pagador
+  //     soma a ATÉ 1,5% do bruto ou líquido -> aba VALIDAR (não concilia sozinho).
+  //     Pega TEDs fracionados que não fecham exato (ex.: prefeitura que paga ~0,6% a mais/menos). ---
+  for(const nf of nfs){
+    if(nf.usada || nf.aproximado || !nf._conv || !nf._bru) continue;
+    const targets=[nf._liq, nf._bru].filter(v=>v!=null);
+    const ps=semNF.filter(p=>p.pagador===nf._conv && (!nf._emi || daysBetween(nf._emi,p._d)>=0));
+    if(ps.length<2 || ps.length>25) continue;   // trava: evita explosão combinatória
+    let best=null,bestRel=0.015;
+    const combosOf=(k)=>{ const out=[]; const rec=(st,ch)=>{ if(ch.length===k){out.push(ch.slice());return;}
+      for(let i=st;i<ps.length;i++){ ch.push(i); rec(i+1,ch); ch.pop(); } }; rec(0,[]); return out; };
+    for(let k=2;k<=Math.min(4,ps.length);k++){
+      for(const combo of combosOf(k)){
+        const sum=combo.reduce((a,i)=>a+ps[i].valor,0);
+        for(const t of targets){ const rel=Math.abs(sum-t)/t; if(rel<bestRel){ bestRel=rel; best={combo,sum}; } }
+      }
+    }
+    if(best){
+      const grp=best.combo.map(i=>ps[i]);
+      nf.aproximado=true; nf.pago=+best.sum.toFixed(2);
+      nf.deltaPct = nf._liq? +(((best.sum-nf._liq)/nf._liq)*100).toFixed(2):0;
+      nf.dataPgto=dBR(grp[grp.length-1]._d);
+      nf.status='APROXIMADO - VALIDAR';
+      nf.identExtrato='PARCELADO ('+grp.length+'x) APROX: '+grp.map(p=>dBR(p._d)+' R$ '+fmt(p.valor)).join(' + ')+' = R$ '+fmt(best.sum)+' \u00b7 CONFERIR (dif '+nf.deltaPct+'%)';
+      grp.forEach(p=>{ const ix=semNF.indexOf(p); if(ix>=0) semNF.splice(ix,1); });
+    }
+  }
+  // --- EXATO TARDIO (1 pagamento): nota pendente cujo líquido/bruto/retenção bate EXATO com um pagamento
+  //     do mesmo pagador, MESMO passando de 60 dias. Tem PRIORIDADE sobre o aproximado por % abaixo —
+  //     evita dar o pagamento a uma nota de valor PARECIDO quando existe outra de valor IDÊNTICO (ex.: Álvaro 30666). ---
+  for(let pi=0; pi<semNF.length; pi++){
+    const pay=semNF[pi];
+    const C=nfs.filter(n=>!n.usada && !n.aproximado && n._conv && n._conv===pay.pagador && n._emi && daysBetween(n._emi,pay._d)>=0);
+    let exato=null;
+    for(const n of C){
+      const alvos=[n._liq,n._bru].concat(cenariosRetencao(n)).filter(v=>v!=null);
+      if(alvos.some(a=>Math.abs(pay.valor-a)<=Math.max(TOL,0.02))){
+        // entre vários exatos, prefere o de menor diferença sobre o líquido
+        const ref=(x)=>Math.abs(pay.valor-(x._liq!=null?x._liq:x._bru));
+        if(!exato || ref(n)<ref(exato)) exato=n;
+      }
+    }
+    if(exato){ const n=exato; n.aproximado=true; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
+      n.deltaPct = n._liq? +(((pay.valor-n._liq)/n._liq)*100).toFixed(2):0;
+      const dd=daysBetween(n._emi,pay._d);
+      n.status='APROXIMADO - VALIDAR';
+      n.identExtrato=(pay.tipo||'CREDIT')+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' · ID '+pay.fitid):'')+' · valor EXATO'+(dd>60?(' · '+dd+'d após emissão'):'')+' · CONFERIR';
+      semNF.splice(pi,1); pi--;
+    }
+  }
+  // --- APROXIMADO (1 pagamento): roda DEPOIS do parcelado. Para cada pagamento restante, acha a nota
+  //     (no prazo<=60d) de MENOR diferença dentro de 8% -> aba VALIDAR (não concilia sozinho). ---
+  for(let pi=0; pi<semNF.length; pi++){
+    const pay=semNF[pi];
+    const C=nfs.filter(n=>!n.usada && !n.aproximado && n._conv && n._conv===pay.pagador);
+    let bestN=null,bestPct=0.0801;
+    for(const n of C){ if(n._liq && janelaOK(n,pay)){ const pct=Math.abs(pay.valor-n._liq)/n._liq;
+      if(pct<bestPct){ bestPct=pct; bestN=n; } } }
+    if(bestN){ const n=bestN; n.aproximado=true; n.pago=pay.valor; n.dataPgto=dBR(pay._d);
+      n.deltaPct=+(((pay.valor-n._liq)/n._liq)*100).toFixed(2);
+      n.status='APROXIMADO - VALIDAR';
+      n.identExtrato=pay.tipo+' '+dBR(pay._d)+' R$ '+fmt(pay.valor)+(pay.fitid?(' \u00b7 ID '+pay.fitid):'')+' \u00b7 CONFERIR (dif '+n.deltaPct+'%)';
+      semNF.splice(pi,1); pi--;
+    }
+  }
+  // PASSE FINAL DE VALIDAÇÃO: NF pendente x pagamento sem NF (mesmo pagador, OU cheque/não identificado), por valor.
+  // Não concilia sozinho — joga na aba "Aproximado - Validar" para a Amanda confirmar. Pega atrasos >60d e depósitos de cheque.
+  for(const nf of nfs){
+    if(nf.usada || nf.aproximado || !nf._emi || !nf._liq) continue;
+    const alvos=[nf._liq, nf._bru].concat(cenariosRetencao(nf)).filter(v=>v!=null);
+    let achei=-1;
+    for(let i=0;i<semNF.length;i++){ const p=semNF[i]; if(!p._d) continue;
+      if(daysBetween(nf._emi,p._d)<0) continue;                 // nunca antes da emissão
+      const mesmo = p.pagador===nf._conv;
+      const cheque = !p.pagador || /CHEQUE|DEP CHEQUE|DEPOSITO|DEP\.|24H/i.test(p.memo||'');
+      if(!mesmo && !cheque) continue;
+      const bate = mesmo ? alvos.some(a=>Math.abs(p.valor-a)<=Math.max(TOL,a*0.02))   // mesmo pagador: aceita retenção
+                         : (Math.abs(p.valor-nf._liq)<=TOL || Math.abs(p.valor-nf._bru)<=TOL); // cheque/ni: só valor exato
+      if(bate){ achei=i; break; }
+    }
+    if(achei>=0){ const p=semNF[achei];
+      nf.aproximado=true; nf.pago=p.valor; nf.dataPgto=dBR(p._d);
+      nf.deltaPct = nf._liq? +(((p.valor-nf._liq)/nf._liq)*100).toFixed(2):0;
+      const dd=daysBetween(nf._emi,p._d);
+      nf.status='APROXIMADO - VALIDAR';
+      nf.identExtrato=(p.tipo||'CREDIT')+' '+dBR(p._d)+' R$ '+fmt(p.valor)+' · '+(p.pagador||'não identificado/cheque')+(dd>60?(' · '+dd+'d após emissão'):'')+' · CONFERIR';
+      semNF.splice(achei,1);
+    }
+  }
+
+  DB.conc={nfs, semNF};
+  try{ if(DB.nfs.length) localStorage.setItem('pi_sessao',_snap()); }catch(e){}
+  renderConc();
+}
+
+function statusClass(s){
+  if(/INTEGRAL c\/ juros/.test(s))return 'st-juros';
+  if(/INTEGRAL/.test(s))return 'st-integral';
+  if(/GLOSA/.test(s))return 'st-glosa';
+  if(/MÚLTIPLOS/.test(s))return 'st-multi';
+  if(/PENDENTE/.test(s))return 'st-pend';
+  return 'st-sem';
+}
+function renderConc(){
+  if(!DB.conc) return;
+  const {nfs,semNF}=DB.conc;
+  const tb=document.querySelector('#tbl-conc tbody'); tb.innerHTML='';
+  nfs.slice().sort((a,b)=>(a._conv||'').localeCompare(b._conv||'')).forEach(n=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${n.numero||''}</td><td>${n._conv||''}</td><td>${n.dataEmissao||''}</td>
+      <td style="text-align:right">${fmt(n._liq)}</td>
+      <td contenteditable data-f="pago" style="text-align:right">${n.pago!=null?fmt(n.pago):''}</td>
+      <td contenteditable data-f="dataPgto">${n.dataPgto||''}</td>
+      <td style="text-align:right">${n.deltaPct!=null?n.deltaPct+'%':''}</td>
+      <td contenteditable data-f="status"><span class="pill ${statusClass(n.status)}">${n.status}</span></td>
+      <td contenteditable data-f="identExtrato" style="font-size:11px">${n.identExtrato||''}</td>`;
+    tr.querySelectorAll('[contenteditable]').forEach(td=>{
+      td.addEventListener('blur',()=>{ const f=td.dataset.f; let v=td.textContent.trim();
+        if(f==='pago'){ v=num(v); n.pago=v; }
+        else if(f==='status'){ n.status=v||'PENDENTE'; n.usada = !!(v && !/PENDENTE/i.test(v)); }
+        else n[f]=v;
+        if(n._liq && n.pago!=null) n.deltaPct=+(((n.pago-n._liq)/n._liq)*100).toFixed(2);
+        renderConc();
+      });
+    });
+    tb.appendChild(tr);
+  });
+  // estatísticas
+  const c={}; nfs.forEach(n=>c[n.status]=(c[n.status]||0)+1);
+  const concil=nfs.filter(n=>n.usada).length, aprx=nfs.filter(n=>n.aproximado).length, pend=nfs.filter(n=>!n.usada && !n.aproximado).length;
+  const st=document.getElementById('conc-stats'); st.innerHTML='';
+  const add=(lab,val)=>{const d=document.createElement('div');d.className='stat';d.innerHTML=`<b>${val}</b><span>${lab}</span>`;st.appendChild(d);};
+  add('NFs conciliadas',concil); add('Aproximadas (validar)',aprx); add('NFs pendentes',pend); add('Pgtos sem NF',semNF.length);
+  document.getElementById('conc-msg').textContent=`${concil} conciliadas · ${aprx} a validar · ${pend} pendentes · ${semNF.length} pgtos sem NF`;
+  const ts=document.querySelector('#tbl-sem tbody'); if(ts){ ts.innerHTML='';
+    semNF.forEach(p=>{ const tr=document.createElement('tr');
+      const opts=['','IGNORAR','REFERE-SE A NF FORA DA BASE'].map(o=>`<option${(p.obs||'')===o?' selected':''}>${o}</option>`).join('');
+      tr.innerHTML=`<td>${dBR(new Date(p.data))}</td><td style="text-align:right">${fmt(p.valor)}</td><td>${p.pagador||''}</td><td style="font-size:11px">${(p.memo||'').slice(0,42)}</td><td><select class="obs">${opts}</select></td>`;
+      tr.querySelector('select').addEventListener('change',e=>{ p.obs=e.target.value; });
+      ts.appendChild(tr);
+    });
+  }
+  renderResumo();
+}
+function renderResumo(){
+  if(!DB.conc){return;}
+  const {nfs,semNF}=DB.conc;
+  const concil=nfs.filter(n=>n.usada).length, pend=nfs.length-concil;
+  const cob = nfs.length? Math.round(concil/nfs.length*100):0;
+  document.getElementById('rel-resumo').innerHTML=
+    `Total de NFs: <b>${nfs.length}</b> · Conciliadas: <b>${concil}</b> · Pendentes: <b>${pend}</b> · `+
+    `Pagamentos sem NF: <b>${semNF.length}</b> · Cobertura de baixa: <b>${cob}%</b>`;
+}
+
+/* =========================================================================
+   EXPORTAÇÃO EXCEL — 4 abas
+   ========================================================================= */
+function exportXLSX(){
+  if(!DB.conc){ document.getElementById('rel-msg').textContent='Rode a conciliação primeiro (aba 3).'; return; }
+  const {nfs,semNF}=DB.conc;
+  const wb=XLSX.utils.book_new();
+  const concl=nfs.filter(n=>n.usada).map(n=>({
+    'Convênio':n._conv,'Nº NF':n.numero,'Tomador':n.tomador,'CNPJ':n.cnpj,
+    'Emissão':n.dataEmissao,'Competência':n.competencia,'Bruto':n._bru,'Líquido':n._liq,
+    'Pago':n.pago,'Data Pgto':n.dataPgto,'Δ%':n.deltaPct,'Status':n.status,'Identificação no Extrato':n.identExtrato}));
+  const pend=nfs.filter(n=>!n.usada && !n.aproximado).map(n=>({
+    'Convênio':n._conv,'Nº NF':n.numero,'Tomador':n.tomador,'CNPJ':n.cnpj,
+    'Emissão':n.dataEmissao,'Competência':n.competencia,'Bruto':n._bru,'Líquido':n._liq,'Status':'PENDENTE'}));
+  const aprox=nfs.filter(n=>n.aproximado).map(n=>({
+    'Convênio':n._conv,'Nº NF':n.numero,'Tomador':n.tomador,'CNPJ':n.cnpj,
+    'Emissão':n.dataEmissao,'Competência':n.competencia,'Bruto':n._bru,'Líquido':n._liq,
+    'Pago':n.pago,'Data Pgto':n.dataPgto,'Δ%':n.deltaPct,'Identificação no Extrato':n.identExtrato,'Sua validação':''}));
+  const sem=semNF.map(p=>({'Data':dBR(new Date(p.data)),'Tipo':p.tipo,'Valor':p.valor,
+    'Documento':p.doc,'Pagador':p.pagador||'','Memo':p.memo,'Observação':p.obs||''}));
+  // === EM ATRASO: NFs pendentes que passaram da janela de pagamento do pagador ===
+  const _hoje=new Date();
+  const _tipoP=(c)=>{const p=PAYERS.find(x=>x.nome===c);return p?p.tipo:'convenio';};
+  const _janelaP=(c)=>{const t=_tipoP(c);return t==='ahbb'?20:t==='prefeitura'?30:t==='empresa'?30:45;};
+  const _atr=nfs.filter(n=>!n.usada && !n.aproximado && n._emi).map(n=>{
+      const dias=Math.round((_hoje-n._emi)/86400000), jan=_janelaP(n._conv);
+      return {n,atraso:dias-jan,dias,jan};
+    }).filter(x=>x.atraso>0).sort((a,b)=>(a.n._conv||'').localeCompare(b.n._conv||'')||b.atraso-a.atraso);
+  const emAtraso=_atr.map(x=>({'Convênio/Pagador':x.n._conv,'Nº NF':x.n.numero,'Tomador':x.n.tomador,'CNPJ':x.n.cnpj,
+    'Emissão':x.n.dataEmissao,'Líquido':x.n._liq,'Dias desde emissão':x.dias,'Janela (dias)':x.jan,'Dias em atraso':x.atraso}));
+  const _pa={}; _atr.forEach(x=>{const k=x.n._conv||'(sem pagador)'; _pa[k]=_pa[k]||{p:k,q:0,v:0,m:0}; _pa[k].q++; _pa[k].v+=x.n._liq||0; if(x.atraso>_pa[k].m)_pa[k].m=x.atraso;});
+  const atrasoPorPag=Object.values(_pa).sort((a,b)=>b.v-a.v).map(r=>({'Pagador':r.p,'NFs em atraso':r.q,'Total a receber (R$)':+r.v.toFixed(2),'Maior atraso (dias)':r.m}));
+  const porConv={}; nfs.forEach(n=>{const k=n._conv||'(sem convênio)'; porConv[k]=porConv[k]||{conv:k,total:0,conc:0,pend:0,liq:0,pago:0};
+    porConv[k].total++; if(n.usada){porConv[k].conc++;porConv[k].pago+=n.pago||0;}else porConv[k].pend++; porConv[k].liq+=n._liq||0;});
+  const resumoConv=Object.values(porConv).map(r=>({'Convênio':r.conv,'NFs':r.total,'Conciliadas':r.conc,'Pendentes':r.pend,
+    'Total Líquido':+r.liq.toFixed(2),'Total Pago':+r.pago.toFixed(2)}));
+  const resumoGeral=[
+    {'Indicador':'Total de NFs','Valor':nfs.length},
+    {'Indicador':'NFs conciliadas','Valor':nfs.filter(n=>n.usada).length},
+    {'Indicador':'NFs pendentes','Valor':nfs.filter(n=>!n.usada && !n.aproximado).length},
+    {'Indicador':'NFs aproximadas (validar)','Valor':nfs.filter(n=>n.aproximado).length},
+    {'Indicador':'Pagamentos sem NF','Valor':semNF.length},
+    {'Indicador':'Cobertura de baixa (%)','Valor':nfs.length?Math.round(nfs.filter(n=>n.usada).length/nfs.length*100):0},
+    {'Indicador':'Gerado em','Valor':new Date().toLocaleString('pt-BR')},
+  ];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(concl.length?concl:[{'(vazio)':''}]),'NFs Conciliadas');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(aprox.length?aprox:[{'(nenhum)':''}]),'Aproximado - Validar');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pend.length?pend:[{'(vazio)':''}]),'NFs Pendentes');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sem.length?sem:[{'(vazio)':''}]),'Pagamentos sem NF');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(atrasoPorPag.length?atrasoPorPag:[{'(nenhum em atraso)':''}]),'Em Atraso - por Pagador');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(emAtraso.length?emAtraso:[{'(nenhum em atraso)':''}]),'Em Atraso - Detalhe');
+  const wsR=XLSX.utils.json_to_sheet(resumoGeral);
+  XLSX.utils.sheet_add_json(wsR,resumoConv,{origin:'D1'});
+  XLSX.utils.book_append_sheet(wb,wsR,'Resumo');
+  const hoje=new Date().toISOString().slice(0,10);
+  salvarWorkbook(wb,`Conciliacao_PROIMAGEM_${hoje}.xlsx`);
+}
+// Salva o .xlsx direto numa pasta escolhida (Chrome/Edge); se nao suportar, baixa normal.
+async function salvarWorkbook(wb,nome){
+  const msg=document.getElementById('rel-msg');
+  if(window.showSaveFilePicker){
+    try{
+      const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+      const handle=await window.showSaveFilePicker({suggestedName:nome,
+        types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
+      const w=await handle.createWritable(); await w.write(new Blob([buf])); await w.close();
+      if(msg) msg.textContent='Relatorio salvo na pasta que voce escolheu ✓';
+      return;
+    }catch(e){ if(e&&e.name==='AbortError'){ if(msg) msg.textContent='Cancelado.'; return; } }
+  }
+  XLSX.writeFile(wb,nome);
+  if(msg) msg.textContent='Relatorio baixado ✓ (na pasta Downloads)';
+}
+
+/* =========================================================================
+   UI / EVENTOS
+   ========================================================================= */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+  if(t.dataset.tab==='conc') renderConc();
+}));
+function wireDrop(dropId,inputId,handler){
+  const d=document.getElementById(dropId), inp=document.getElementById(inputId);
+  d.addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',e=>{handler(e.target.files); inp.value='';});
+  ['dragover','dragenter'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('over');}));
+  d.addEventListener('drop',e=>handler(e.dataTransfer.files));
+}
+wireDrop('drop-nf','file-nf',ingestNFFiles);
+wireDrop('drop-ofx','file-ofx',async files=>{ for(const f of files){ ingestOFX(await f.text()); } });
+wireDrop('drop-bol','file-bol',async files=>{ for(const f of files){ ingestBoleto(await f.text()); } });
+
+/* ===== PASSO 2: carregar PASTA inteira (inclui subpastas) ===== */
+function wireFolder(btnId,inputId,onFiles){
+  const b=document.getElementById(btnId), inp=document.getElementById(inputId);
+  if(!b||!inp) return;
+  b.addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',async e=>{ await onFiles(Array.from(e.target.files)); inp.value=''; });
+}
+wireFolder('btn-folder-nf','folder-nf',async all=>{
+  const arquivos=all.filter(f=>/\.(pdf|xml)$/i.test(f.name));
+  const log=document.getElementById('nf-log');
+  if(!arquivos.length){ if(log) log.textContent='Nenhum PDF/XML encontrado nessa pasta.'; return; }
+  if(log) log.textContent='Lendo '+arquivos.length+' arquivo(s) da pasta\u2026 aguarde.';
+  await ingestNFFiles(arquivos);
+});
+wireFolder('btn-folder-ofx','folder-ofx',async all=>{
+  const arquivos=all.filter(f=>/\.ofx$/i.test(f.name));
+  const msg=document.getElementById('ofx-msg');
+  if(!arquivos.length){ if(msg) msg.textContent='Nenhum .ofx encontrado nessa pasta.'; return; }
+  let n=0; for(const f of arquivos){ ingestOFX(await f.text()); n++; }
+  if(msg) msg.textContent=n+' extrato(s) .ofx carregado(s) da pasta.';
+});
+document.getElementById('btn-clear-bol').addEventListener('click',()=>{ if(confirm('Apagar os boletos carregados?')){ DB.boletos=[]; renderBoletos(); }});
+
+document.getElementById('btn-clear-nf').addEventListener('click',()=>{
+  if(confirm('Apagar TODAS as NFs acumuladas?')){ DB.nfs=[]; saveNFs(); renderNFs(); }});
+document.getElementById('btn-clear-ofx').addEventListener('click',()=>{
+  if(confirm('Apagar o extrato carregado?')){ DB.txs=[]; saveTXs(); renderOFX(); }});
+document.getElementById('btn-add-nf').addEventListener('click',()=>{
+  DB.nfs.push({id:uid(),fonte:'manual',numero:'',dataEmissao:'',competencia:'',tomador:'',cnpj:'',convenio:'',bruto:null,liquido:null});
+  saveNFs(); renderNFs(); });
+document.getElementById('only-conc').addEventListener('change',renderOFX);
+document.getElementById('btn-run').addEventListener('click',conciliar);
+document.getElementById('btn-xlsx').addEventListener('click',exportXLSX);
+document.getElementById('btn-save-sess').addEventListener('click',salvarSessao);
+document.getElementById('btn-load-sess').addEventListener('click',carregarSessao);
+(function(){ try{ const raw=localStorage.getItem('pi_sessao'); const el=document.getElementById('sess-msg'); if(raw&&el){ const d=JSON.parse(raw); el.textContent='H\u00e1 uma concilia\u00e7\u00e3o salva ('+new Date(d.ts).toLocaleString('pt-BR')+', '+(d.nfs?d.nfs.length:0)+' NFs) \u2014 clique em "Carregar \u00faltima".'; } }catch(e){} })();
+
+renderNFs(); renderOFX(); renderBoletos();
+</script>
+</body>
+</html>
